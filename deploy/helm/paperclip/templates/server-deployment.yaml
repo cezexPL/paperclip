@@ -27,6 +27,8 @@ spec:
           env:
             - name: NODE_ENV
               value: production
+            - name: HOME
+              value: /home/node
             - name: HOST
               value: "0.0.0.0"
             - name: PORT
@@ -68,9 +70,22 @@ spec:
           volumeMounts:
             - name: paperclip-data
               mountPath: /paperclip
+            - name: claude-creds
+              mountPath: /home/node/.claude
+              readOnly: true
+            - name: codex-creds
+              mountPath: /home/node/.codex
           resources:
             {{- toYaml .Values.server.resources | nindent 12 }}
       volumes:
         - name: paperclip-data
           persistentVolumeClaim:
             claimName: {{ include "paperclip.serverService" . }}-data
+        - name: claude-creds
+          hostPath:
+            path: /home/rancher/.claude
+            type: Directory
+        - name: codex-creds
+          hostPath:
+            path: /home/rancher/.codex
+            type: Directory

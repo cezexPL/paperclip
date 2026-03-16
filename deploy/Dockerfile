@@ -52,7 +52,8 @@ ENV NODE_ENV=production \
   PAPERCLIP_DEPLOYMENT_MODE=authenticated \
   PAPERCLIP_DEPLOYMENT_EXPOSURE=private
 
-RUN mkdir -p /paperclip && chown node:node /paperclip
+RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/codex@latest \
+  && mkdir -p /paperclip && chown node:node /paperclip
 
 VOLUME ["/paperclip"]
 EXPOSE 3100
