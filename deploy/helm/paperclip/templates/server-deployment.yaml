@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "paperclip.serverService" . }}
+  labels:
+    {{- include "paperclip.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  replicas: {{ .Values.server.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "paperclip.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels:
+        {{- include "paperclip.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: server
+    spec:
+      containers:
+        - name: server
+          image: {{ printf "%s/%s:%s" .Values.global.registry .Values.images.server.repository .Values.images.server.tag | quote }}
+          imagePullPolicy: {{ .Values.images.server.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.server.port }}
+              name: http
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: {{ .Values.server.port | quote }}
+            - name: SERVE_UI
+              value: "true"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "paperclip.fullname" . }}-secret
+                  key: DATABASE_URL
+            - name: BETTER_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "paperclip.fullname" . }}-secret
+                  key: BETTER_AUTH_SECRET
+            - name: PAPERCLIP_HOME
+              value: /paperclip
+            - name: PAPERCLIP_INSTANCE_ID
+              value: default
+            - name: PAPERCLIP_DEPLOYMENT_MODE
+              value: authenticated
+            - name: PAPERCLIP_DEPLOYMENT_EXPOSURE
+              value: private
+            - name: PAPERCLIP_ALLOWED_HOSTNAMES
+              value: {{ .Values.host | quote }}
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          volumeMounts:
+            - name: paperclip-data
+              mountPath: /paperclip
+          resources:
+            {{- toYaml .Values.server.resources | nindent 12 }}
+      volumes:
+        - name: paperclip-data
+          persistentVolumeClaim:
+            claimName: {{ include "paperclip.serverService" . }}-data

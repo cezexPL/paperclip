@@ -1,0 +1,35 @@
+global:
+  registry: 127.0.0.1:30500
+  storageClass: local-path
+  ingressClassName: traefik
+  clusterIssuer: letsencrypt-prod
+
+host: paperclip.notangrysoftware.com
+
+images:
+  server:
+    repository: paperclip/server
+    tag: latest
+    pullPolicy: Always
+  postgres:
+    repository: postgres
+    tag: 16-alpine
+    pullPolicy: IfNotPresent
+
+server:
+  replicaCount: 1
+  port: 3100
+  resources: {}
+  persistence:
+    size: 10Gi
+
+postgres:
+  auth:
+    database: paperclip
+    username: paperclip
+  persistence:
+    size: 10Gi
+
+secrets:
+  postgresPassword: change-me-postgres
+  betterAuthSecret: change-me-auth-secret

@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "paperclip.serverService" . }}
+  labels:
+    {{- include "paperclip.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.global.clusterIssuer | quote }}
+spec:
+  ingressClassName: {{ .Values.global.ingressClassName | quote }}
+  tls:
+    - hosts:
+        - {{ .Values.host | quote }}
+      secretName: {{ include "paperclip.serverService" . }}-tls
+  rules:
+    - host: {{ .Values.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "paperclip.serverService" . }}
+                port:
+                  number: {{ .Values.server.port }}

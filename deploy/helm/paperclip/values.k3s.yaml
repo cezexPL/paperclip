@@ -1,0 +1,11 @@
+global:
+  registry: 127.0.0.1:30500
+  storageClass: local-path
+  ingressClassName: traefik
+  clusterIssuer: letsencrypt-prod
+
+host: paperclip.notangrysoftware.com
+
+secrets:
+  postgresPassword: paperclip-k3s-2026
+  betterAuthSecret: YQ44xaTaFO3IJf0hM10qbfOdkHO0F/WmJja6EhQx2OY=
