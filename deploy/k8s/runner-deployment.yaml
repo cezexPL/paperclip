@@ -1,0 +1,45 @@
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: RunnerDeployment
+metadata:
+  name: paperclip-runners
+  namespace: actions-runner-system
+spec:
+  replicas: 1
+  template:
+    spec:
+      repository: cezexPL/paperclip
+      image: summerwind/actions-runner-dind:latest
+      labels:
+        - arm64
+        - k3s
+        - self-hosted
+        - paperclip
+      dockerdWithinRunnerContainer: true
+      env:
+        - name: RUNNER_FEATURE_FLAG_EPHEMERAL
+          value: "true"
+        - name: KUBECONFIG
+          value: /runner-kube/config
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: "4"
+          memory: 8Gi
+      volumeMounts:
+        - mountPath: /usr/local/bin/kubectl
+          name: kubectl-bin
+          readOnly: true
+        - mountPath: /runner-kube
+          name: kubeconfig
+          readOnly: true
+      volumes:
+        - name: kubectl-bin
+          hostPath:
+            path: /usr/local/bin/kubectl
+            type: File
+        - name: kubeconfig
+          hostPath:
+            path: /etc/rancher/k3s
+            type: Directory

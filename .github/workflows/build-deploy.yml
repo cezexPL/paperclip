@@ -1,0 +1,41 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build-deploy:
+    runs-on: [self-hosted, k3s, arm64, paperclip]
+    timeout-minutes: 30
+    env:
+      REGISTRY: 127.0.0.1:30500
+      KUBECONFIG: /runner-kube/config
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set tag
+        id: tag
+        run: echo "tag=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push image (no cache)
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}" ./deploy/scripts/build-push.sh
+
+      - name: Deploy to K3s
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}" ./deploy/scripts/deploy.sh
+
+      - name: Verify health
+        run: |
+          sleep 10
+          STATUS=$(curl -sk https://paperclip.notangrysoftware.com/api/health | grep -o '"status":"ok"' || true)
+          if [ -z "$STATUS" ]; then
+            echo "Health check failed!"
+            kubectl -n paperclip logs deploy/paperclip-server --tail=20
+            exit 1
+          fi
+          echo "Health check passed ✅"
