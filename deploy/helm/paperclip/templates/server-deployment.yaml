@@ -50,7 +50,9 @@ spec:
             - name: PAPERCLIP_DEPLOYMENT_MODE
               value: authenticated
             - name: PAPERCLIP_DEPLOYMENT_EXPOSURE
-              value: private
+              value: public
+            - name: PAPERCLIP_AUTH_PUBLIC_BASE_URL
+              value: "https://{{ .Values.host }}"
             - name: PAPERCLIP_ALLOWED_HOSTNAMES
               value: {{ .Values.host | quote }}
           readinessProbe:
