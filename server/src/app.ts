@@ -25,6 +25,8 @@ import { llmRoutes } from "./routes/llms.js";
 import { assetRoutes } from "./routes/assets.js";
 import { accessRoutes } from "./routes/access.js";
 import { inviteTokenRoutes } from "./routes/members.js";
+import { onboardingRoutes } from "./routes/onboarding.js";
+import { artifactRoutes } from "./routes/artifacts.js";
 import { pluginRoutes } from "./routes/plugins.js";
 import { pluginUiStaticRoutes } from "./routes/plugin-ui-static.js";
 import { applyUiBranding } from "./ui-branding.js";
@@ -210,6 +212,8 @@ export async function createApp(
       allowedHostnames: opts.allowedHostnames,
     }),
   );
+  api.use(onboardingRoutes(db));
+  api.use(artifactRoutes(db, opts.storageService));
   api.use("/invites", inviteTokenRoutes(db));
   app.use("/api", api);
   app.use("/api", (_req, res) => {

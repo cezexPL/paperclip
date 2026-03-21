@@ -18,6 +18,8 @@ export { accessService } from "./access.js";
 export { membershipService } from "./memberships.js";
 export { companyInviteService } from "./invites.js";
 export { companyPortabilityService } from "./company-portability.js";
+export { onboardingService } from "./onboarding.js";
+export { artifactService } from "./artifacts.js";
 export { logActivity, type LogActivityInput } from "./activity-log.js";
 export { notifyHireApproved, type NotifyHireApprovedInput } from "./hire-hook.js";
 export { publishLiveEvent, subscribeCompanyLiveEvents } from "./live-events.js";
