@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, Link, Navigate, useBeforeUnload } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { agentsApi, type AgentKey, type ClaudeLoginResult } from "../api/agents";
+import { agentsApi, type AgentKey, type ClaudeLoginResult, type CircuitBreakerStatus } from "../api/agents";
 import { heartbeatsApi } from "../api/heartbeats";
 import { ApiError } from "../api/client";
 import { ChartCard, RunActivityChart, PriorityChart, IssueStatusChart, SuccessRateChart } from "../components/ActivityCharts";
@@ -54,6 +55,10 @@ import {
   ChevronRight,
   ChevronDown,
   ArrowLeft,
+  Shield,
+  ShieldAlert,
+  AlertTriangle,
+  DollarSign,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { AgentIcon, AgentIconPicker } from "../components/AgentIconPicker";
@@ -761,6 +766,226 @@ function LatestRunCard({ runs, agentId }: { runs: HeartbeatRun[]; agentId: strin
   );
 }
 
+/* ---- Circuit Breaker Card ---- */
+
+function CircuitBreakerCard({ agent }: { agent: Agent }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+
+  const { data: cbStatus } = useQuery({
+    queryKey: queryKeys.agents.circuitBreaker(agent.id),
+    queryFn: () => agentsApi.circuitBreakerStatus(agent.id),
+    enabled: Boolean(agent.id),
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: () => agentsApi.circuitBreakerReset(agent.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.circuitBreaker(agent.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (config: { enabled?: boolean; maxFailures?: number; maxNoProgress?: number }) =>
+      agentsApi.circuitBreakerUpdate(agent.id, config),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.circuitBreaker(agent.id) });
+    },
+  });
+
+  const budgetOverrideMutation = useMutation({
+    mutationFn: () => agentsApi.budgetOverride(agent.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
+    },
+  });
+
+  const [showConfig, setShowConfig] = useState(false);
+  const [configMaxFailures, setConfigMaxFailures] = useState<number>(cbStatus?.maxFailures ?? 3);
+  const [configMaxNoProgress, setConfigMaxNoProgress] = useState<number>(cbStatus?.maxNoProgress ?? 5);
+
+  useEffect(() => {
+    if (cbStatus) {
+      setConfigMaxFailures(cbStatus.maxFailures);
+      setConfigMaxNoProgress(cbStatus.maxNoProgress);
+    }
+  }, [cbStatus]);
+
+  if (!cbStatus) return null;
+
+  const budgetExhausted = agent.budgetMonthlyCents > 0 && agent.spentMonthlyCents >= agent.budgetMonthlyCents;
+  const budgetWarning = agent.budgetMonthlyCents > 0 && agent.spentMonthlyCents >= agent.budgetMonthlyCents * 0.8 && !budgetExhausted;
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-medium">{t("circuitBreaker.title", "Circuit Breaker")}</h3>
+      <div className={cn(
+        "border rounded-lg p-4 space-y-3",
+        cbStatus.tripped
+          ? "border-red-500/50 bg-red-500/5"
+          : budgetExhausted
+            ? "border-orange-500/50 bg-orange-500/5"
+            : "border-border",
+      )}>
+        {/* Status row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {cbStatus.tripped ? (
+              <ShieldAlert className="h-4 w-4 text-red-500" />
+            ) : (
+              <Shield className="h-4 w-4 text-green-500" />
+            )}
+            <span className={cn(
+              "text-sm font-medium",
+              cbStatus.tripped ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400",
+            )}>
+              {cbStatus.tripped
+                ? t("circuitBreaker.tripped", "Tripped")
+                : t("circuitBreaker.healthy", "Healthy")}
+            </span>
+            {!cbStatus.enabled && (
+              <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                {t("circuitBreaker.disabled", "Disabled")}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {cbStatus.tripped && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => resetMutation.mutate()}
+                disabled={resetMutation.isPending}
+              >
+                <RotateCcw className="h-3 w-3 mr-1" />
+                {t("circuitBreaker.reset", "Reset")}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowConfig(!showConfig)}
+            >
+              {showConfig ? t("common.close", "Close") : t("common.edit", "Edit")}
+            </Button>
+          </div>
+        </div>
+
+        {/* Trip reason */}
+        {cbStatus.tripped && cbStatus.tripReason && (
+          <div className="text-xs text-red-600 dark:text-red-400 bg-red-500/10 rounded px-2 py-1.5">
+            {t("circuitBreaker.reason", "Reason")}: {cbStatus.tripReason}
+          </div>
+        )}
+
+        {/* Counters */}
+        <div className="grid grid-cols-2 gap-3 text-xs">
+          <div>
+            <span className="text-muted-foreground block">{t("circuitBreaker.consecutiveFailures", "Consecutive failures")}</span>
+            <span className={cn("font-semibold", cbStatus.consecutiveFailures > 0 ? "text-red-500" : "")}>
+              {cbStatus.consecutiveFailures} / {cbStatus.maxFailures}
+            </span>
+          </div>
+          <div>
+            <span className="text-muted-foreground block">{t("circuitBreaker.consecutiveNoProgress", "No-progress runs")}</span>
+            <span className={cn("font-semibold", cbStatus.consecutiveNoProgress > 0 ? "text-amber-500" : "")}>
+              {cbStatus.consecutiveNoProgress} / {cbStatus.maxNoProgress}
+            </span>
+          </div>
+        </div>
+
+        {/* Budget warning/exhausted */}
+        {budgetWarning && (
+          <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded px-2 py-1.5">
+            <AlertTriangle className="h-3 w-3 shrink-0" />
+            {t("circuitBreaker.budgetWarning", "Budget at {{percent}}%", {
+              percent: Math.round((agent.spentMonthlyCents / agent.budgetMonthlyCents) * 100),
+            })}
+          </div>
+        )}
+        {budgetExhausted && (
+          <div className="flex items-center justify-between text-xs text-orange-600 dark:text-orange-400 bg-orange-500/10 rounded px-2 py-1.5">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-3 w-3 shrink-0" />
+              {t("circuitBreaker.budgetExhausted", "Budget exhausted — agent paused")}
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-xs"
+              onClick={() => budgetOverrideMutation.mutate()}
+              disabled={budgetOverrideMutation.isPending}
+            >
+              {t("circuitBreaker.budgetOverride", "Override")}
+            </Button>
+          </div>
+        )}
+
+        {/* Config editor */}
+        {showConfig && (
+          <div className="border-t border-border pt-3 space-y-3">
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-muted-foreground">{t("circuitBreaker.enabled", "Enabled")}</label>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={cbStatus.enabled}
+                onClick={() => updateMutation.mutate({ enabled: !cbStatus.enabled })}
+                className={cn(
+                  "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                  cbStatus.enabled ? "bg-green-500" : "bg-muted",
+                )}
+              >
+                <span className={cn(
+                  "inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform",
+                  cbStatus.enabled ? "translate-x-4.5" : "translate-x-0.5",
+                )} />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">
+                  {t("circuitBreaker.maxFailures", "Max failures")}
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={configMaxFailures}
+                  onChange={(e) => setConfigMaxFailures(Number(e.target.value))}
+                  className="h-7 text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">
+                  {t("circuitBreaker.maxNoProgress", "Max no-progress")}
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={configMaxNoProgress}
+                  onChange={(e) => setConfigMaxNoProgress(Number(e.target.value))}
+                  className="h-7 text-xs"
+                />
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => updateMutation.mutate({
+                maxFailures: configMaxFailures,
+                maxNoProgress: configMaxNoProgress,
+              })}
+              disabled={updateMutation.isPending}
+            >
+              {t("common.save", "Save")}
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ---- Agent Overview (main single-page view) ---- */
 
 function AgentOverview({
@@ -782,6 +1007,9 @@ function AgentOverview({
     <div className="space-y-8">
       {/* Latest Run */}
       <LatestRunCard runs={runs} agentId={agentRouteId} />
+
+      {/* Circuit Breaker & Budget */}
+      <CircuitBreakerCard agent={agent} />
 
       {/* Charts */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -45,6 +45,17 @@ export interface AgentHireResponse {
   approval: Approval | null;
 }
 
+export interface CircuitBreakerStatus {
+  enabled: boolean;
+  tripped: boolean;
+  trippedAt: Date | null;
+  tripReason: string | null;
+  consecutiveFailures: number;
+  consecutiveNoProgress: number;
+  maxFailures: number;
+  maxNoProgress: number;
+}
+
 function withCompanyScope(path: string, companyId?: string) {
   if (!companyId) return path;
   const separator = path.includes("?") ? "&" : "?";
@@ -144,4 +155,15 @@ export const agentsApi = {
   ) => api.post<HeartbeatRun | { status: "skipped" }>(agentPath(id, companyId, "/wakeup"), data),
   loginWithClaude: (id: string, companyId?: string) =>
     api.post<ClaudeLoginResult>(agentPath(id, companyId, "/claude-login"), {}),
+  circuitBreakerStatus: (id: string, companyId?: string) =>
+    api.get<CircuitBreakerStatus>(agentPath(id, companyId, "/circuit-breaker")),
+  circuitBreakerReset: (id: string, companyId?: string) =>
+    api.post<CircuitBreakerStatus>(agentPath(id, companyId, "/circuit-breaker/reset"), {}),
+  circuitBreakerUpdate: (
+    id: string,
+    config: { enabled?: boolean; maxFailures?: number; maxNoProgress?: number },
+    companyId?: string,
+  ) => api.patch<CircuitBreakerStatus>(agentPath(id, companyId, "/circuit-breaker"), config),
+  budgetOverride: (id: string, companyId?: string) =>
+    api.post<Agent>(agentPath(id, companyId, "/budget-override"), {}),
 };

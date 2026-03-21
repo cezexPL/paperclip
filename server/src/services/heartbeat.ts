@@ -22,6 +22,7 @@ import type { AdapterExecutionResult, AdapterInvocationMeta, AdapterSessionCodec
 import { createLocalAgentJwt } from "../agent-auth-jwt.js";
 import { parseObject, asBoolean, asNumber, appendWithCap, MAX_EXCERPT_BYTES } from "../adapters/utils.js";
 import { costService } from "./costs.js";
+import { circuitBreakerService } from "./circuit-breaker.js";
 import { secretService } from "./secrets.js";
 import { resolveDefaultAgentWorkspaceDir } from "../home-paths.js";
 import { summarizeHeartbeatRunResultJson } from "./heartbeat-run-summary.js";
@@ -556,6 +557,7 @@ export function heartbeatService(db: Db) {
   const runLogStore = getRunLogStore();
   const secretsSvc = secretService(db);
   const issuesSvc = issueService(db);
+  const cbSvc = circuitBreakerService(db);
   const activeRunExecutions = new Set<string>();
 
   async function getAgent(agentId: string) {
@@ -1953,6 +1955,25 @@ export function heartbeatService(db: Db) {
         }
       }
       await finalizeAgentStatus(agent.id, outcome);
+
+      // Circuit breaker evaluation: check for repeated failures / no-progress runs
+      try {
+        const resultObj = adapterResult.resultJson && typeof adapterResult.resultJson === "object"
+          ? adapterResult.resultJson as Record<string, unknown>
+          : null;
+        const hadProgress =
+          outcome === "succeeded" &&
+          (
+            Boolean(resultObj?.summary) ||
+            Boolean(resultObj?.result) ||
+            Boolean(resultObj?.issuesUpdated) ||
+            Boolean(resultObj?.commentsCreated) ||
+            (adapterResult.exitCode === 0 && Boolean(stderrExcerpt || stdoutExcerpt))
+          );
+        await cbSvc.evaluateAfterRun(agent.id, { outcome, hadProgress });
+      } catch (cbErr) {
+        logger.warn({ err: cbErr, agentId: agent.id }, "circuit breaker evaluation failed");
+      }
     } catch (err) {
       const message = redactCurrentUserText(err instanceof Error ? err.message : "Unknown adapter failure");
       logger.error({ err, runId }, "heartbeat execution failed");
@@ -2014,6 +2035,13 @@ export function heartbeatService(db: Db) {
       }
 
       await finalizeAgentStatus(agent.id, "failed");
+
+      // Circuit breaker: count this failure
+      try {
+        await cbSvc.evaluateAfterRun(agent.id, { outcome: "failed", hadProgress: false });
+      } catch (cbErr) {
+        logger.warn({ err: cbErr, agentId: agent.id }, "circuit breaker evaluation failed");
+      }
     }
     } catch (outerErr) {
           // Setup code before adapter.execute threw (e.g. ensureRuntimeState, resolveWorkspaceForRun).
@@ -2258,6 +2286,20 @@ export function heartbeatService(db: Db) {
     if (source !== "timer" && !policy.wakeOnDemand) {
       await writeSkippedRequest("heartbeat.wakeOnDemand.disabled");
       return null;
+    }
+
+    // Wake gating: skip timer-based wakes when circuit breaker detects no-progress streak
+    if (source === "timer") {
+      try {
+        const gateCheck = await cbSvc.shouldSkipWake(agentId);
+        if (gateCheck.skip) {
+          await writeSkippedRequest(`wake_gated:${gateCheck.reason}`);
+          logger.debug({ agentId, reason: gateCheck.reason }, "wake gated by circuit breaker");
+          return null;
+        }
+      } catch (gateErr) {
+        logger.warn({ err: gateErr, agentId }, "wake gating check failed, proceeding");
+      }
     }
 
     const bypassIssueExecutionLock =

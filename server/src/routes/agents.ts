@@ -23,6 +23,7 @@ import {
   agentService,
   accessService,
   approvalService,
+  circuitBreakerService,
   heartbeatService,
   issueApprovalService,
   issueService,
@@ -57,6 +58,7 @@ export function agentRoutes(db: Db) {
   const svc = agentService(db);
   const access = accessService(db);
   const approvalsSvc = approvalService(db);
+  const cbSvc = circuitBreakerService(db);
   const heartbeat = heartbeatService(db);
   const issueApprovalsSvc = issueApprovalService(db);
   const secretsSvc = secretService(db);
@@ -1213,6 +1215,63 @@ export function agentRoutes(db: Db) {
       action: "agent.terminated",
       entityType: "agent",
       entityId: agent.id,
+    });
+
+    res.json(agent);
+  });
+
+  // ---- Circuit Breaker endpoints ----
+
+  router.get("/agents/:id/circuit-breaker", async (req, res) => {
+    assertBoard(req);
+    const id = req.params.id as string;
+    const status = await cbSvc.getStatus(id);
+    res.json(status);
+  });
+
+  router.post("/agents/:id/circuit-breaker/reset", async (req, res) => {
+    assertBoard(req);
+    const id = req.params.id as string;
+    await cbSvc.resetBreaker(id);
+    const status = await cbSvc.getStatus(id);
+    res.json(status);
+  });
+
+  router.patch("/agents/:id/circuit-breaker", async (req, res) => {
+    assertBoard(req);
+    const id = req.params.id as string;
+    const { enabled, maxFailures, maxNoProgress } = req.body as {
+      enabled?: boolean;
+      maxFailures?: number;
+      maxNoProgress?: number;
+    };
+    await cbSvc.updateConfig(id, { enabled, maxFailures, maxNoProgress });
+    const status = await cbSvc.getStatus(id);
+    res.json(status);
+  });
+
+  // ---- Budget override endpoint ----
+
+  router.post("/agents/:id/budget-override", async (req, res) => {
+    assertBoard(req);
+    const id = req.params.id as string;
+    const agent = await svc.resume(id);
+    if (!agent) {
+      res.status(404).json({ error: "Agent not found" });
+      return;
+    }
+
+    await logActivity(db, {
+      companyId: agent.companyId,
+      actorType: "user",
+      actorId: req.actor.userId ?? "board",
+      action: "budget.override",
+      entityType: "agent",
+      entityId: agent.id,
+      details: {
+        spentCents: agent.spentMonthlyCents,
+        budgetCents: agent.budgetMonthlyCents,
+      },
     });
 
     res.json(agent);

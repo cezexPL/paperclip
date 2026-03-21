@@ -2,6 +2,9 @@ import { and, desc, eq, gte, isNotNull, lte, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { activityLog, agents, companies, costEvents, heartbeatRuns, issues, projects } from "@paperclipai/db";
 import { notFound, unprocessable } from "../errors.js";
+import { logActivity } from "./activity-log.js";
+import { publishLiveEvent } from "./live-events.js";
+import { logger } from "../middleware/logger.js";
 
 export interface CostDateRange {
   from?: Date;
@@ -50,17 +53,80 @@ export function costService(db: Db) {
         .where(eq(agents.id, event.agentId))
         .then((rows) => rows[0] ?? null);
 
-      if (
-        updatedAgent &&
-        updatedAgent.budgetMonthlyCents > 0 &&
-        updatedAgent.spentMonthlyCents >= updatedAgent.budgetMonthlyCents &&
-        updatedAgent.status !== "paused" &&
-        updatedAgent.status !== "terminated"
-      ) {
-        await db
-          .update(agents)
-          .set({ status: "paused", updatedAt: new Date() })
-          .where(eq(agents.id, updatedAgent.id));
+      if (updatedAgent && updatedAgent.budgetMonthlyCents > 0) {
+        const utilization = updatedAgent.spentMonthlyCents / updatedAgent.budgetMonthlyCents;
+
+        // 80% budget warning
+        const previousSpent = updatedAgent.spentMonthlyCents - event.costCents;
+        const previousUtilization = previousSpent / updatedAgent.budgetMonthlyCents;
+        if (utilization >= 0.8 && previousUtilization < 0.8) {
+          try {
+            await logActivity(db, {
+              companyId,
+              actorType: "system",
+              actorId: "budget_monitor",
+              action: "budget.warning_80",
+              entityType: "agent",
+              entityId: updatedAgent.id,
+              agentId: updatedAgent.id,
+              details: {
+                spentCents: updatedAgent.spentMonthlyCents,
+                budgetCents: updatedAgent.budgetMonthlyCents,
+                utilizationPercent: Math.round(utilization * 100),
+              },
+            });
+            logger.warn(
+              { agentId: updatedAgent.id, utilization: Math.round(utilization * 100) },
+              "agent budget at 80%",
+            );
+          } catch {
+            // Non-critical, do not block cost recording
+          }
+        }
+
+        // 100% budget hard-stop
+        if (
+          utilization >= 1.0 &&
+          updatedAgent.status !== "paused" &&
+          updatedAgent.status !== "terminated"
+        ) {
+          await db
+            .update(agents)
+            .set({ status: "paused", updatedAt: new Date() })
+            .where(eq(agents.id, updatedAgent.id));
+
+          try {
+            await logActivity(db, {
+              companyId,
+              actorType: "system",
+              actorId: "budget_monitor",
+              action: "budget.exhausted",
+              entityType: "agent",
+              entityId: updatedAgent.id,
+              agentId: updatedAgent.id,
+              details: {
+                spentCents: updatedAgent.spentMonthlyCents,
+                budgetCents: updatedAgent.budgetMonthlyCents,
+                utilizationPercent: Math.round(utilization * 100),
+              },
+            });
+            publishLiveEvent({
+              companyId,
+              type: "agent.budget_exhausted",
+              payload: {
+                agentId: updatedAgent.id,
+                spentCents: updatedAgent.spentMonthlyCents,
+                budgetCents: updatedAgent.budgetMonthlyCents,
+              },
+            });
+            logger.warn(
+              { agentId: updatedAgent.id },
+              "agent budget exhausted — auto-paused",
+            );
+          } catch {
+            // Non-critical
+          }
+        }
       }
 
       return event;

@@ -801,5 +801,21 @@
   "inlineEntitySelector": {
     "search": "Search...",
     "noResults": "No results"
+  },
+  "circuitBreaker": {
+    "title": "Circuit Breaker",
+    "tripped": "Tripped",
+    "healthy": "Healthy",
+    "disabled": "Disabled",
+    "reset": "Reset",
+    "reason": "Reason",
+    "consecutiveFailures": "Consecutive failures",
+    "consecutiveNoProgress": "No-progress runs",
+    "enabled": "Enabled",
+    "maxFailures": "Max failures",
+    "maxNoProgress": "Max no-progress",
+    "budgetWarning": "Budget at {{percent}}%",
+    "budgetExhausted": "Budget exhausted — agent paused",
+    "budgetOverride": "Override"
   }
 }

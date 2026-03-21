@@ -801,5 +801,21 @@
   "inlineEntitySelector": {
     "search": "Szukaj...",
     "noResults": "Brak wyników"
+  },
+  "circuitBreaker": {
+    "title": "Bezpiecznik",
+    "tripped": "Wyzwolony",
+    "healthy": "Sprawny",
+    "disabled": "Wyłączony",
+    "reset": "Resetuj",
+    "reason": "Powód",
+    "consecutiveFailures": "Kolejne błędy",
+    "consecutiveNoProgress": "Uruchomienia bez postępu",
+    "enabled": "Włączony",
+    "maxFailures": "Maks. błędów",
+    "maxNoProgress": "Maks. bez postępu",
+    "budgetWarning": "Budżet na {{percent}}%",
+    "budgetExhausted": "Budżet wyczerpany — agent wstrzymany",
+    "budgetOverride": "Kontynuuj"
   }
 }

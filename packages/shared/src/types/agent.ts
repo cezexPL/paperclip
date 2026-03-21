@@ -27,6 +27,14 @@ export interface Agent {
   permissions: AgentPermissions;
   lastHeartbeatAt: Date | null;
   metadata: Record<string, unknown> | null;
+  circuitBreakerEnabled: boolean;
+  circuitBreakerMaxNoProgress: number;
+  circuitBreakerMaxFailures: number;
+  circuitBreakerTripped: boolean;
+  circuitBreakerTrippedAt: Date | null;
+  circuitBreakerTripReason: string | null;
+  circuitBreakerConsecutiveFailures: number;
+  circuitBreakerConsecutiveNoProgress: number;
   createdAt: Date;
   updatedAt: Date;
 }
