@@ -19,10 +19,9 @@ services:
   server:
     build: .
     restart: unless-stopped
-    ports:
-      - "0.0.0.0:3100:3100"
+    network_mode: host
     environment:
-      DATABASE_URL: postgres://paperclip:${POSTGRES_PASSWORD:-paperclip-docker-2026}@db:5432/paperclip
+      DATABASE_URL: postgres://paperclip:${POSTGRES_PASSWORD:-paperclip-docker-2026}@127.0.0.1:5433/paperclip
       PORT: "3100"
       SERVE_UI: "true"
       PAPERCLIP_DEPLOYMENT_MODE: "authenticated"
@@ -32,6 +31,8 @@ services:
       BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
     volumes:
       - paperclip-data:/paperclip
+      - /home/rancher/.codex/auth.json:/paperclip/.codex/auth.json:ro
+      - /home/rancher/.codex/config.toml:/paperclip/.codex/config.toml:ro
     depends_on:
       db:
         condition: service_healthy
