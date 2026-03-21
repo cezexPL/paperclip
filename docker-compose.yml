@@ -33,6 +33,7 @@ services:
       - paperclip-data:/paperclip
       - /home/rancher/.codex/auth.json:/paperclip/.codex/auth.json:ro
       - /home/rancher/.codex/config.toml:/paperclip/.codex/config.toml:ro
+      - /home/rancher/.gemini:/paperclip/.gemini
     depends_on:
       db:
         condition: service_healthy
