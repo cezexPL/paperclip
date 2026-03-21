@@ -9,6 +9,7 @@ import {
   SquarePen,
   Network,
   Settings,
+  Users,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -109,6 +110,7 @@ export function Sidebar() {
         <SidebarSection label={t("sidebar.company")}>
           <SidebarNavItem to="/org" label={t("nav.org")} icon={Network} />
           <SidebarNavItem to="/costs" label={t("nav.costs")} icon={DollarSign} />
+          <SidebarNavItem to="/members" label={t("nav.members")} icon={Users} />
           <SidebarNavItem to="/activity" label={t("nav.activity")} icon={History} />
           <SidebarNavItem to="/company/settings" label={t("nav.settings")} icon={Settings} />
         </SidebarSection>

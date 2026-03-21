@@ -77,7 +77,8 @@
     "home": "Strona główna",
     "create": "Utwórz",
     "documentation": "Dokumentacja",
-    "skipToMain": "Przejdź do treści głównej"
+    "skipToMain": "Przejdź do treści głównej",
+    "members": "Członkowie"
   },
   "sidebar": {
     "newIssue": "Nowe zadanie",
@@ -817,5 +818,36 @@
     "budgetWarning": "Budżet na {{percent}}%",
     "budgetExhausted": "Budżet wyczerpany — agent wstrzymany",
     "budgetOverride": "Kontynuuj"
+  },
+  "members": {
+    "title": "Członkowie",
+    "breadcrumb": "Członkowie",
+    "add": "Dodaj członka",
+    "invite": "Zaproś",
+    "remove": "Usuń",
+    "removeConfirm": "Czy na pewno chcesz usunąć tego członka?",
+    "empty": "Brak członków w tej firmie.",
+    "role": "Rola",
+    "roleOwner": "Właściciel",
+    "roleAdmin": "Administrator",
+    "roleOperator": "Operator",
+    "roleViewer": "Obserwator",
+    "email": "Email",
+    "name": "Nazwa",
+    "joined": "Dołączył",
+    "typeUser": "Użytkownik",
+    "typeAgent": "Agent",
+    "changeRole": "Zmień rolę",
+    "inviteLink": "Link z zaproszeniem",
+    "inviteLinkCopied": "Skopiowano link zaproszenia!",
+    "inviteGenerated": "Zaproszenie wygenerowane",
+    "inviteExpires": "Wygasa",
+    "noCompany": "Wybierz firmę.",
+    "loading": "Ładowanie...",
+    "error": "Błąd ładowania członków",
+    "lastOwner": "Nie można usunąć ostatniego właściciela",
+    "added": "Członek dodany",
+    "removed": "Członek usunięty",
+    "roleUpdated": "Rola zaktualizowana"
   }
 }

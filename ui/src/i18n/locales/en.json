@@ -77,7 +77,8 @@
     "home": "Home",
     "create": "Create",
     "documentation": "Documentation",
-    "skipToMain": "Skip to Main Content"
+    "skipToMain": "Skip to Main Content",
+    "members": "Members"
   },
   "sidebar": {
     "newIssue": "New Issue",
@@ -817,5 +818,36 @@
     "budgetWarning": "Budget at {{percent}}%",
     "budgetExhausted": "Budget exhausted — agent paused",
     "budgetOverride": "Override"
+  },
+  "members": {
+    "title": "Members",
+    "breadcrumb": "Members",
+    "add": "Add member",
+    "invite": "Invite",
+    "remove": "Remove",
+    "removeConfirm": "Are you sure you want to remove this member?",
+    "empty": "No members in this company.",
+    "role": "Role",
+    "roleOwner": "Owner",
+    "roleAdmin": "Admin",
+    "roleOperator": "Operator",
+    "roleViewer": "Viewer",
+    "email": "Email",
+    "name": "Name",
+    "joined": "Joined",
+    "typeUser": "User",
+    "typeAgent": "Agent",
+    "changeRole": "Change role",
+    "inviteLink": "Invite link",
+    "inviteLinkCopied": "Invite link copied!",
+    "inviteGenerated": "Invite generated",
+    "inviteExpires": "Expires",
+    "noCompany": "Select a company first.",
+    "loading": "Loading...",
+    "error": "Failed to load members",
+    "lastOwner": "Cannot remove the last owner",
+    "added": "Member added",
+    "removed": "Member removed",
+    "roleUpdated": "Role updated"
   }
 }

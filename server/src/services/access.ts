@@ -5,7 +5,8 @@ import {
   instanceUserRoles,
   principalPermissionGrants,
 } from "@paperclipai/db";
-import type { PermissionKey, PrincipalType } from "@paperclipai/shared";
+import type { MembershipRole, PermissionKey, PrincipalType } from "@paperclipai/shared";
+import { MEMBERSHIP_ROLES } from "@paperclipai/shared";
 
 type MembershipRow = typeof companyMemberships.$inferSelect;
 type GrantInput = {
@@ -251,6 +252,73 @@ export function accessService(db: Db) {
     });
   }
 
+  /** Numeric privilege level: lower index = more privileged. */
+  function roleLevel(role: string | null): number {
+    const idx = MEMBERSHIP_ROLES.indexOf(role as MembershipRole);
+    return idx >= 0 ? idx : MEMBERSHIP_ROLES.length; // unknown = least privileged
+  }
+
+  /** True when `actorRole` is at least as privileged as `requiredRole`. */
+  function hasRole(actorRole: string | null, requiredRole: MembershipRole): boolean {
+    return roleLevel(actorRole) <= roleLevel(requiredRole);
+  }
+
+  async function getUserRole(companyId: string, userId: string): Promise<MembershipRole | null> {
+    const membership = await getMembership(companyId, "user", userId);
+    if (!membership || membership.status !== "active") return null;
+    return (membership.membershipRole as MembershipRole) ?? null;
+  }
+
+  async function addMember(
+    companyId: string,
+    userId: string,
+    role: MembershipRole,
+    invitedByUserId: string | null,
+  ) {
+    const existing = await getMembership(companyId, "user", userId);
+    if (existing) return existing;
+    return db
+      .insert(companyMemberships)
+      .values({
+        companyId,
+        principalType: "user",
+        principalId: userId,
+        status: "active",
+        membershipRole: role,
+      })
+      .returning()
+      .then((rows) => rows[0]);
+  }
+
+  async function removeMember(companyId: string, userId: string) {
+    return db
+      .delete(companyMemberships)
+      .where(
+        and(
+          eq(companyMemberships.companyId, companyId),
+          eq(companyMemberships.principalType, "user"),
+          eq(companyMemberships.principalId, userId),
+        ),
+      )
+      .returning()
+      .then((rows) => rows[0] ?? null);
+  }
+
+  async function updateMemberRole(companyId: string, userId: string, newRole: MembershipRole) {
+    return db
+      .update(companyMemberships)
+      .set({ membershipRole: newRole, updatedAt: new Date() })
+      .where(
+        and(
+          eq(companyMemberships.companyId, companyId),
+          eq(companyMemberships.principalType, "user"),
+          eq(companyMemberships.principalId, userId),
+        ),
+      )
+      .returning()
+      .then((rows) => rows[0] ?? null);
+  }
+
   return {
     isInstanceAdmin,
     canUser,
@@ -264,5 +332,11 @@ export function accessService(db: Db) {
     listUserCompanyAccess,
     setUserCompanyAccess,
     setPrincipalGrants,
+    roleLevel,
+    hasRole,
+    getUserRole,
+    addMember,
+    removeMember,
+    updateMemberRole,
   };
 }

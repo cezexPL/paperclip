@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Router } from "express";
 import type { Request } from "express";
-import { and, eq, isNull, desc } from "drizzle-orm";
+import { and, eq, inArray, isNull, desc } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import {
   agentApiKeys,
@@ -19,11 +19,13 @@ import {
 } from "@paperclipai/db";
 import {
   acceptInviteSchema,
+  addMemberSchema,
   claimJoinRequestApiKeySchema,
   createCompanyInviteSchema,
   createOpenClawInvitePromptSchema,
   listJoinRequestsQuerySchema,
   updateMemberPermissionsSchema,
+  updateMemberRoleSchema,
   updateUserCompanyAccessSchema,
   PERMISSION_KEYS
 } from "@paperclipai/shared";
@@ -44,7 +46,7 @@ import {
   logActivity,
   notifyHireApproved
 } from "../services/index.js";
-import { assertCompanyAccess } from "./authz.js";
+import { assertCompanyAccess, assertCompanyRole } from "./authz.js";
 import {
   claimBoardOwnership,
   inspectBoardClaimChallenge
@@ -2541,12 +2543,108 @@ export function accessRoutes(
     }
   );
 
+  // ---------- Member management ----------
+
   router.get("/companies/:companyId/members", async (req, res) => {
     const companyId = req.params.companyId as string;
-    await assertCompanyPermission(req, companyId, "users:manage_permissions");
+    assertCompanyAccess(req, companyId);
     const members = await access.listMembers(companyId);
-    res.json(members);
+    // Enrich with user info (email, name) when available
+    const userIds = members
+      .filter((m) => m.principalType === "user")
+      .map((m) => m.principalId);
+    let userMap = new Map<string, { email: string | null; name: string | null }>();
+    if (userIds.length > 0) {
+      const users = await db
+        .select({
+          id: authUsers.id,
+          email: authUsers.email,
+          name: authUsers.name,
+        })
+        .from(authUsers)
+        .where(inArray(authUsers.id, userIds));
+      userMap = new Map(users.map((u) => [u.id, { email: u.email, name: u.name }]));
+    }
+    const enriched = members.map((m) => {
+      const user = m.principalType === "user" ? userMap.get(m.principalId) : null;
+      return { ...m, email: user?.email ?? null, name: user?.name ?? null };
+    });
+    res.json(enriched);
   });
+
+  router.post(
+    "/companies/:companyId/members",
+    validate(addMemberSchema),
+    async (req, res) => {
+      const companyId = req.params.companyId as string;
+      await assertCompanyRole(db, req, companyId, "admin");
+      const { userId, role } = req.body;
+      const member = await access.addMember(companyId, userId, role, req.actor.userId ?? null);
+      await logActivity(db, {
+        companyId,
+        actorType: "user",
+        actorId: req.actor.userId ?? "board",
+        action: "member.added",
+        entityType: "company_membership",
+        entityId: member!.id,
+        details: { userId, role },
+      });
+      res.status(201).json(member);
+    },
+  );
+
+  router.patch(
+    "/companies/:companyId/members/:userId/role",
+    validate(updateMemberRoleSchema),
+    async (req, res) => {
+      const companyId = req.params.companyId as string;
+      const targetUserId = req.params.userId as string;
+      await assertCompanyRole(db, req, companyId, "owner");
+      const updated = await access.updateMemberRole(companyId, targetUserId, req.body.role);
+      if (!updated) throw notFound("Member not found");
+      await logActivity(db, {
+        companyId,
+        actorType: "user",
+        actorId: req.actor.userId ?? "board",
+        action: "member.role_updated",
+        entityType: "company_membership",
+        entityId: updated.id,
+        details: { userId: targetUserId, newRole: req.body.role },
+      });
+      res.json(updated);
+    },
+  );
+
+  router.delete(
+    "/companies/:companyId/members/:userId",
+    async (req, res) => {
+      const companyId = req.params.companyId as string;
+      const targetUserId = req.params.userId as string;
+      await assertCompanyRole(db, req, companyId, "admin");
+      // Prevent removing the last owner
+      const targetMembership = await access.getMembership(companyId, "user", targetUserId);
+      if (!targetMembership) throw notFound("Member not found");
+      if (targetMembership.membershipRole === "owner") {
+        const allMembers = await access.listMembers(companyId);
+        const ownerCount = allMembers.filter(
+          (m) => m.principalType === "user" && m.membershipRole === "owner",
+        ).length;
+        if (ownerCount <= 1) throw conflict("Cannot remove the last owner");
+      }
+      const removed = await access.removeMember(companyId, targetUserId);
+      if (!removed) throw notFound("Member not found");
+      await logActivity(db, {
+        companyId,
+        actorType: "user",
+        actorId: req.actor.userId ?? "board",
+        action: "member.removed",
+        entityType: "company_membership",
+        entityId: removed.id,
+        details: { userId: targetUserId },
+      });
+      res.json({ ok: true });
+    },
+  );
 
   router.patch(
     "/companies/:companyId/members/:memberId/permissions",

@@ -227,6 +227,10 @@ export type PrincipalType = (typeof PRINCIPAL_TYPES)[number];
 export const MEMBERSHIP_STATUSES = ["pending", "active", "suspended"] as const;
 export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
 
+/** Ordered from most to least privileged — used for role hierarchy checks. */
+export const MEMBERSHIP_ROLES = ["owner", "admin", "operator", "viewer"] as const;
+export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
+
 export const INSTANCE_USER_ROLES = ["instance_admin"] as const;
 export type InstanceUserRole = (typeof INSTANCE_USER_ROLES)[number];
 
