@@ -1,32 +1,35 @@
 services:
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: paperclip
-      POSTGRES_PASSWORD: paperclip
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-paperclip-docker-2026}
       POSTGRES_DB: paperclip
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U paperclip -d paperclip"]
-      interval: 2s
+      interval: 5s
       timeout: 5s
       retries: 30
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
   server:
     build: .
+    restart: unless-stopped
     ports:
-      - "3100:3100"
+      - "0.0.0.0:3100:3100"
     environment:
-      DATABASE_URL: postgres://paperclip:paperclip@db:5432/paperclip
+      DATABASE_URL: postgres://paperclip:${POSTGRES_PASSWORD:-paperclip-docker-2026}@db:5432/paperclip
       PORT: "3100"
       SERVE_UI: "true"
       PAPERCLIP_DEPLOYMENT_MODE: "authenticated"
-      PAPERCLIP_DEPLOYMENT_EXPOSURE: "private"
-      PAPERCLIP_PUBLIC_URL: "${PAPERCLIP_PUBLIC_URL:-http://localhost:3100}"
-      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET must be set}"
+      PAPERCLIP_DEPLOYMENT_EXPOSURE: "public"
+      PAPERCLIP_PUBLIC_URL: "http://152.53.116.238:3100"
+      PAPERCLIP_ALLOWED_HOSTNAMES: "152.53.116.238"
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
     volumes:
       - paperclip-data:/paperclip
     depends_on:
