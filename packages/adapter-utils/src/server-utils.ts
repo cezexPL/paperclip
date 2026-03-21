@@ -464,17 +464,19 @@ export async function runChildProcess(
         runningProcesses.set(runId, { child, graceSec: opts.graceSec });
 
         let timedOut = false;
+        let exited = false;
         let stdout = "";
         let stderr = "";
         let logChain: Promise<void> = Promise.resolve();
+        let graceTimeout: ReturnType<typeof setTimeout> | null = null;
 
         const timeout =
           opts.timeoutSec > 0
             ? setTimeout(() => {
                 timedOut = true;
                 child.kill("SIGTERM");
-                setTimeout(() => {
-                  if (!child.killed) {
+                graceTimeout = setTimeout(() => {
+                  if (!exited) {
                     child.kill("SIGKILL");
                   }
                 }, Math.max(1, opts.graceSec) * 1000);
@@ -498,7 +500,9 @@ export async function runChildProcess(
         });
 
         child.on("error", (err: Error) => {
+          exited = true;
           if (timeout) clearTimeout(timeout);
+          if (graceTimeout) clearTimeout(graceTimeout);
           runningProcesses.delete(runId);
           const errno = (err as NodeJS.ErrnoException).code;
           const pathValue = mergedEnv.PATH ?? mergedEnv.Path ?? "";
@@ -510,7 +514,9 @@ export async function runChildProcess(
         });
 
         child.on("close", (code: number | null, signal: NodeJS.Signals | null) => {
+          exited = true;
           if (timeout) clearTimeout(timeout);
+          if (graceTimeout) clearTimeout(graceTimeout);
           runningProcesses.delete(runId);
           void logChain.finally(() => {
             resolve({
