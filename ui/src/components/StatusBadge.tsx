@@ -1,7 +1,11 @@
+import { useTranslation } from "react-i18next";
 import { cn } from "../lib/utils";
 import { statusBadge, statusBadgeDefault } from "../lib/status-colors";
 
 export function StatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
+  const key = `status.${status}` as const;
+  const label = t(key, { defaultValue: status.replace("_", " ") });
   return (
     <span
       className={cn(
@@ -9,7 +13,7 @@ export function StatusBadge({ status }: { status: string }) {
         statusBadge[status] ?? statusBadgeDefault
       )}
     >
-      {status.replace("_", " ")}
+      {label}
     </span>
   );
 }

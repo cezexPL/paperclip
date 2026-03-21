@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "@/lib/router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Project } from "@paperclipai/shared";
@@ -153,6 +154,7 @@ function ProjectStatusPicker({ status, onChange }: { status: string; onChange: (
 }
 
 export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSaveState }: ProjectPropertiesProps) {
+  const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const queryClient = useQueryClient();
   const [goalOpen, setGoalOpen] = useState(false);
@@ -365,7 +367,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
   return (
     <div>
       <div className="space-y-1 pb-4">
-        <PropertyRow label={<FieldLabel label="Name" state={fieldState("name")} />}>
+        <PropertyRow label={<FieldLabel label={t("projectProperties.name")} state={fieldState("name")} />}>
           {onUpdate || onFieldUpdate ? (
             <DraftInput
               value={project.name}
@@ -379,7 +381,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
           )}
         </PropertyRow>
         <PropertyRow
-          label={<FieldLabel label="Description" state={fieldState("description")} />}
+          label={<FieldLabel label={t("projectProperties.description")} state={fieldState("description")} />}
           alignStart
           valueClassName="space-y-0.5"
         >
@@ -398,7 +400,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
             </p>
           )}
         </PropertyRow>
-        <PropertyRow label={<FieldLabel label="Status" state={fieldState("status")} />}>
+        <PropertyRow label={<FieldLabel label={t("projectProperties.status")} state={fieldState("status")} />}>
           {onUpdate || onFieldUpdate ? (
             <ProjectStatusPicker
               status={project.status}
@@ -414,12 +416,12 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
           </PropertyRow>
         )}
         <PropertyRow
-          label={<FieldLabel label="Goals" state={fieldState("goals")} />}
+          label={<FieldLabel label={t("projectProperties.goals")} state={fieldState("goals")} />}
           alignStart
           valueClassName="space-y-2"
         >
           {linkedGoals.length === 0 ? (
-            <span className="text-sm text-muted-foreground">None</span>
+            <span className="text-sm text-muted-foreground">{t("projectProperties.noGoal")}</span>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {linkedGoals.map((goal) => (
@@ -477,14 +479,14 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
             </Popover>
           )}
         </PropertyRow>
-        <PropertyRow label={<FieldLabel label="Created" state="idle" />}>
+        <PropertyRow label={<FieldLabel label={t("projectProperties.created")} state="idle" />}>
           <span className="text-sm">{formatDate(project.createdAt)}</span>
         </PropertyRow>
-        <PropertyRow label={<FieldLabel label="Updated" state="idle" />}>
+        <PropertyRow label={<FieldLabel label={t("projectProperties.updated")} state="idle" />}>
           <span className="text-sm">{formatDate(project.updatedAt)}</span>
         </PropertyRow>
         {project.targetDate && (
-          <PropertyRow label={<FieldLabel label="Target Date" state="idle" />}>
+          <PropertyRow label={<FieldLabel label={t("projectProperties.targetDate")} state="idle" />}>
             <span className="text-sm">{formatDate(project.targetDate)}</span>
           </PropertyRow>
         )}
@@ -495,7 +497,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
       <div className="space-y-1 py-4">
         <div className="space-y-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>Workspaces</span>
+            <span>{t("projectProperties.workspaces")}</span>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -513,7 +515,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
           </div>
           {workspaces.length === 0 ? (
             <p className="rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
-              No workspace configured.
+              {t("projectProperties.noWorkspace")}
             </p>
           ) : (
             <div className="space-y-1">
@@ -613,7 +615,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
                 setWorkspaceError(null);
               }}
             >
-              Add workspace local folder
+              {t("projectProperties.addLocalFolder")}
             </Button>
             <Button
               variant="outline"
@@ -624,7 +626,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
                 setWorkspaceError(null);
               }}
             >
-              Add workspace repo
+              {t("projectProperties.addRepo")}
             </Button>
           </div>
           {workspaceMode === "local" && (

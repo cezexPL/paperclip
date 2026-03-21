@@ -11,17 +11,19 @@ import { Identity } from "../components/Identity";
 import { StatusBadge } from "../components/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 import { DollarSign } from "lucide-react";
 
 type DatePreset = "mtd" | "7d" | "30d" | "ytd" | "all" | "custom";
 
-const PRESET_LABELS: Record<DatePreset, string> = {
-  mtd: "Month to Date",
-  "7d": "Last 7 Days",
-  "30d": "Last 30 Days",
-  ytd: "Year to Date",
-  all: "All Time",
-  custom: "Custom",
+// Labels are resolved at render time using t() below
+const PRESET_KEYS: Record<DatePreset, string> = {
+  mtd: "costs.monthToDate",
+  "7d": "costs.last7Days",
+  "30d": "costs.last30Days",
+  ytd: "costs.yearToDate",
+  all: "costs.allTime",
+  custom: "costs.custom",
 };
 
 function computeRange(preset: DatePreset): { from: string; to: string } {
@@ -52,6 +54,7 @@ function computeRange(preset: DatePreset): { from: string; to: string } {
 }
 
 export function Costs() {
+  const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
 
@@ -60,7 +63,7 @@ export function Costs() {
   const [customTo, setCustomTo] = useState("");
 
   useEffect(() => {
-    setBreadcrumbs([{ label: "Costs" }]);
+    setBreadcrumbs([{ label: t("costs.title") }]);
   }, [setBreadcrumbs]);
 
   const { from, to } = useMemo(() => {
@@ -87,7 +90,7 @@ export function Costs() {
   });
 
   if (!selectedCompanyId) {
-    return <EmptyState icon={DollarSign} message="Select a company to view costs." />;
+    return <EmptyState icon={DollarSign} message={t("costs.selectCompany")} />;
   }
 
   if (isLoading) {
@@ -107,7 +110,7 @@ export function Costs() {
             size="sm"
             onClick={() => setPreset(p)}
           >
-            {PRESET_LABELS[p]}
+            {t(PRESET_KEYS[p])}
           </Button>
         ))}
         {preset === "custom" && (
@@ -137,7 +140,7 @@ export function Costs() {
           <Card>
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{PRESET_LABELS[preset]}</p>
+                <p className="text-sm text-muted-foreground">{t(PRESET_KEYS[preset])}</p>
                 {data.summary.budgetCents > 0 && (
                   <p className="text-sm text-muted-foreground">
                     {data.summary.utilizationPercent}% utilized
@@ -149,7 +152,7 @@ export function Costs() {
                 <span className="text-base font-normal text-muted-foreground">
                   {data.summary.budgetCents > 0
                     ? `/ ${formatCents(data.summary.budgetCents)}`
-                    : "Unlimited budget"}
+                    : t("costs.unlimitedBudget")}
                 </span>
               </p>
               {data.summary.budgetCents > 0 && (
@@ -173,9 +176,9 @@ export function Costs() {
           <div className="grid md:grid-cols-2 gap-4">
             <Card>
               <CardContent className="p-4">
-                <h3 className="text-sm font-semibold mb-3">By Agent</h3>
+                <h3 className="text-sm font-semibold mb-3">{t("costs.byAgent")}</h3>
                 {data.byAgent.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No cost events yet.</p>
+                  <p className="text-sm text-muted-foreground">{t("costs.noCostEvents")}</p>
                 ) : (
                   <div className="space-y-2">
                     {data.byAgent.map((row) => (
@@ -216,9 +219,9 @@ export function Costs() {
 
             <Card>
               <CardContent className="p-4">
-                <h3 className="text-sm font-semibold mb-3">By Project</h3>
+                <h3 className="text-sm font-semibold mb-3">{t("costs.byProject")}</h3>
                 {data.byProject.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No project-attributed run costs yet.</p>
+                  <p className="text-sm text-muted-foreground">{t("costs.noProjectCosts")}</p>
                 ) : (
                   <div className="space-y-2">
                     {data.byProject.map((row) => (
@@ -227,7 +230,7 @@ export function Costs() {
                         className="flex items-center justify-between text-sm"
                       >
                         <span className="truncate">
-                          {row.projectName ?? row.projectId ?? "Unattributed"}
+                          {row.projectName ?? row.projectId ?? t("costs.unattributed")}
                         </span>
                         <span className="font-medium tabular-nums">{formatCents(row.costCents)}</span>
                       </div>

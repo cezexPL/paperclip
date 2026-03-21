@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
@@ -60,10 +61,10 @@ const defaultViewState: IssueViewState = {
 };
 
 const quickFilterPresets = [
-  { label: "All", statuses: [] as string[] },
-  { label: "Active", statuses: ["todo", "in_progress", "in_review", "blocked"] },
-  { label: "Backlog", statuses: ["backlog"] },
-  { label: "Done", statuses: ["done", "cancelled"] },
+  { labelKey: "issues.quickAll", statuses: [] as string[] },
+  { labelKey: "issues.quickActive", statuses: ["todo", "in_progress", "in_review", "blocked"] },
+  { labelKey: "issues.quickBacklog", statuses: ["backlog"] },
+  { labelKey: "issues.quickDone", statuses: ["done", "cancelled"] },
 ];
 
 function getViewState(key: string): IssueViewState {
@@ -174,6 +175,7 @@ export function IssuesList({
   onSearchChange,
   onUpdateIssue,
 }: IssuesListProps) {
+  const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { openNewIssue } = useDialog();
   const { data: session } = useQuery({
@@ -312,7 +314,7 @@ export function IssuesList({
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <Button size="sm" variant="outline" onClick={() => openNewIssue(newIssueDefaults())}>
             <Plus className="h-4 w-4 sm:mr-1" />
-            <span className="hidden sm:inline">New Issue</span>
+            <span className="hidden sm:inline">{t("issues.newIssue")}</span>
           </Button>
           <div className="relative w-48 sm:w-64 md:w-80">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -322,7 +324,7 @@ export function IssuesList({
                 setIssueSearch(e.target.value);
                 onSearchChange?.(e.target.value);
               }}
-              placeholder="Search issues..."
+              placeholder={t("issues.searchPlaceholder")}
               className="pl-7 text-xs sm:text-sm"
               aria-label="Search issues"
             />
@@ -371,7 +373,7 @@ export function IssuesList({
             <PopoverContent align="end" className="w-[min(480px,calc(100vw-2rem))] p-0">
               <div className="p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Filters</span>
+                  <span className="text-sm font-medium">{t("filterBar.filters")}</span>
                   {activeFilterCount > 0 && (
                     <button
                       className="text-xs text-muted-foreground hover:text-foreground"
@@ -390,7 +392,7 @@ export function IssuesList({
                       const isActive = arraysEqual(viewState.statuses, preset.statuses);
                       return (
                         <button
-                          key={preset.label}
+                          key={preset.labelKey}
                           className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
                             isActive
                               ? "bg-primary text-primary-foreground border-primary"
@@ -398,7 +400,7 @@ export function IssuesList({
                           }`}
                           onClick={() => updateView({ statuses: isActive ? [] : [...preset.statuses] })}
                         >
-                          {preset.label}
+                          {t(preset.labelKey)}
                         </button>
                       );
                     })}
@@ -586,8 +588,8 @@ export function IssuesList({
       {!isLoading && filtered.length === 0 && viewState.viewMode === "list" && (
         <EmptyState
           icon={CircleDot}
-          message="No issues match the current filters or search."
-          action="Create Issue"
+          message={t("issues.noMatch")}
+          action={t("issues.createIssue")}
           onAction={() => openNewIssue(newIssueDefaults())}
         />
       )}
@@ -750,7 +752,7 @@ export function IssuesList({
                         >
                           <input
                             className="mb-1 w-full border-b border-border bg-transparent px-2 py-1.5 text-xs outline-none placeholder:text-muted-foreground/50"
-                            placeholder="Search assignees..."
+                            placeholder={t("issues.searchAssignees")}
                             value={assigneeSearch}
                             onChange={(e) => setAssigneeSearch(e.target.value)}
                             autoFocus

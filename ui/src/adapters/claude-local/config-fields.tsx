@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { AdapterConfigFieldsProps } from "../types";
 import {
   Field,
@@ -12,9 +13,6 @@ import { LocalWorkspaceRuntimeFields } from "../local-workspace-runtime-fields";
 const inputClass =
   "w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40";
 
-const instructionsFileHint =
-  "Absolute path to a markdown file (e.g. AGENTS.md) that defines this agent's behavior. Injected into the system prompt at runtime.";
-
 export function ClaudeLocalConfigFields({
   mode,
   isCreate,
@@ -26,9 +24,10 @@ export function ClaudeLocalConfigFields({
   mark,
   models,
 }: AdapterConfigFieldsProps) {
+  const { t } = useTranslation();
   return (
     <>
-      <Field label="Agent instructions file" hint={instructionsFileHint}>
+      <Field label={t("adapters.agentInstructions")} hint={t("adapters.instructionsHintClaude")}>
         <div className="flex items-center gap-2">
           <DraftInput
             value={
@@ -47,7 +46,7 @@ export function ClaudeLocalConfigFields({
             }
             immediate
             className={inputClass}
-            placeholder="/absolute/path/to/AGENTS.md"
+            placeholder={t("adapters.instructionsPlaceholder")}
           />
           <ChoosePathButton />
         </div>
@@ -75,10 +74,11 @@ export function ClaudeLocalAdvancedFields({
   eff,
   mark,
 }: AdapterConfigFieldsProps) {
+  const { t } = useTranslation();
   return (
     <>
       <ToggleField
-        label="Enable Chrome"
+        label={t("adapters.enableChrome")}
         hint={help.chrome}
         checked={
           isCreate
@@ -92,7 +92,7 @@ export function ClaudeLocalAdvancedFields({
         }
       />
       <ToggleField
-        label="Skip permissions"
+        label={t("adapters.skipPermissions")}
         hint={help.dangerouslySkipPermissions}
         checked={
           isCreate
@@ -109,7 +109,7 @@ export function ClaudeLocalAdvancedFields({
             : mark("adapterConfig", "dangerouslySkipPermissions", v)
         }
       />
-      <Field label="Max turns per run" hint={help.maxTurnsPerRun}>
+      <Field label={t("adapters.maxTurns")} hint={help.maxTurnsPerRun}>
         {isCreate ? (
           <input
             type="number"

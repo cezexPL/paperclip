@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { AdapterConfigFieldsProps } from "../types";
 import {
   Field,
@@ -7,8 +8,6 @@ import { ChoosePathButton } from "../../components/PathInstructionsModal";
 
 const inputClass =
   "w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40";
-const instructionsFileHint =
-  "Absolute path to a markdown file (e.g. AGENTS.md) that defines this agent's behavior. Injected into the prompt at runtime.";
 
 export function CursorLocalConfigFields({
   isCreate,
@@ -18,8 +17,9 @@ export function CursorLocalConfigFields({
   eff,
   mark,
 }: AdapterConfigFieldsProps) {
+  const { t } = useTranslation();
   return (
-    <Field label="Agent instructions file" hint={instructionsFileHint}>
+    <Field label={t("adapters.agentInstructions")} hint={t("adapters.instructionsHintCursor")}>
       <div className="flex items-center gap-2">
         <DraftInput
           value={
@@ -38,7 +38,7 @@ export function CursorLocalConfigFields({
           }
           immediate
           className={inputClass}
-          placeholder="/absolute/path/to/AGENTS.md"
+          placeholder={t("adapters.instructionsPlaceholder")}
         />
         <ChoosePathButton />
       </div>

@@ -6,6 +6,7 @@ import { authApi } from "../api/auth";
 import { healthApi } from "../api/health";
 import { queryKeys } from "../lib/queryKeys";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 import { AGENT_ADAPTER_TYPES } from "@paperclipai/shared";
 import type { AgentAdapterType, JoinRequest } from "@paperclipai/shared";
 
@@ -39,6 +40,7 @@ function readNestedString(value: unknown, path: string[]): string | null {
 }
 
 export function InviteLandingPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const params = useParams();
   const token = (params.token ?? "").trim();
@@ -115,20 +117,20 @@ export function InviteLandingPage() {
   });
 
   if (!token) {
-    return <div className="mx-auto max-w-xl py-10 text-sm text-destructive">Invalid invite token.</div>;
+    return <div className="mx-auto max-w-xl py-10 text-sm text-destructive">{t("invite.invalidToken")}</div>;
   }
 
   if (inviteQuery.isLoading || healthQuery.isLoading || sessionQuery.isLoading) {
-    return <div className="mx-auto max-w-xl py-10 text-sm text-muted-foreground">Loading invite...</div>;
+    return <div className="mx-auto max-w-xl py-10 text-sm text-muted-foreground">{t("invite.loading")}</div>;
   }
 
   if (inviteQuery.error || !invite) {
     return (
       <div className="mx-auto max-w-xl py-10">
         <div className="rounded-lg border border-border bg-card p-6">
-          <h1 className="text-lg font-semibold">Invite not available</h1>
+          <h1 className="text-lg font-semibold">{t("invite.notAvailable")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            This invite may be expired, revoked, or already used.
+            {t("invite.expiredMessage")}
           </p>
         </div>
       </div>
@@ -139,7 +141,7 @@ export function InviteLandingPage() {
     return (
       <div className="mx-auto max-w-xl py-10">
         <div className="rounded-lg border border-border bg-card p-6">
-          <h1 className="text-lg font-semibold">Bootstrap complete</h1>
+          <h1 className="text-lg font-semibold">{t("invite.bootstrapComplete")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             The first instance admin is now configured. You can continue to the board.
           </p>
@@ -174,7 +176,7 @@ export function InviteLandingPage() {
     return (
       <div className="mx-auto max-w-xl py-10">
         <div className="rounded-lg border border-border bg-card p-6">
-          <h1 className="text-lg font-semibold">Join request submitted</h1>
+          <h1 className="text-lg font-semibold">{t("invite.joinRequestSubmitted")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Your request is pending admin approval. You will not have access until approved.
           </p>
@@ -227,7 +229,7 @@ export function InviteLandingPage() {
         <h1 className="text-xl font-semibold">
           {invite.inviteType === "bootstrap_ceo" ? "Bootstrap your Paperclip instance" : "Join this Paperclip company"}
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">Invite expires {dateTime(invite.expiresAt)}.</p>
+        <p className="mt-2 text-sm text-muted-foreground">{t("invite.inviteExpires", { dateTime: dateTime(invite.expiresAt) })}</p>
 
         {invite.inviteType !== "bootstrap_ceo" && (
           <div className="mt-5 flex gap-2">
@@ -307,7 +309,7 @@ export function InviteLandingPage() {
           onClick={() => acceptMutation.mutate()}
         >
           {acceptMutation.isPending
-            ? "Submitting…"
+            ? t("invite.submitting")
             : invite.inviteType === "bootstrap_ceo"
               ? "Accept bootstrap invite"
               : "Submit join request"}

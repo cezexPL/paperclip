@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { AdapterConfigFieldsProps } from "../types";
 import {
   Field,
@@ -10,8 +11,6 @@ import { LocalWorkspaceRuntimeFields } from "../local-workspace-runtime-fields";
 
 const inputClass =
   "w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40";
-const instructionsFileHint =
-  "Absolute path to a markdown file (e.g. AGENTS.md) that defines this agent's behavior. Injected into the system prompt at runtime.";
 
 export function CodexLocalConfigFields({
   mode,
@@ -24,12 +23,13 @@ export function CodexLocalConfigFields({
   mark,
   models,
 }: AdapterConfigFieldsProps) {
+  const { t } = useTranslation();
   const bypassEnabled =
     config.dangerouslyBypassApprovalsAndSandbox === true || config.dangerouslyBypassSandbox === true;
 
   return (
     <>
-      <Field label="Agent instructions file" hint={instructionsFileHint}>
+      <Field label={t("adapters.agentInstructions")} hint={t("adapters.instructionsHintClaude")}>
         <div className="flex items-center gap-2">
           <DraftInput
             value={
@@ -48,13 +48,13 @@ export function CodexLocalConfigFields({
             }
             immediate
             className={inputClass}
-            placeholder="/absolute/path/to/AGENTS.md"
+            placeholder={t("adapters.instructionsPlaceholder")}
           />
           <ChoosePathButton />
         </div>
       </Field>
       <ToggleField
-        label="Bypass sandbox"
+        label={t("adapters.bypassSandbox")}
         hint={help.dangerouslyBypassSandbox}
         checked={
           isCreate
@@ -72,7 +72,7 @@ export function CodexLocalConfigFields({
         }
       />
       <ToggleField
-        label="Enable search"
+        label={t("adapters.enableSearch")}
         hint={help.search}
         checked={
           isCreate

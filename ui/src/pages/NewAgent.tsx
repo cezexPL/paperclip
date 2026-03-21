@@ -13,6 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Shield, User } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn, agentUrl } from "../lib/utils";
 import { roleLabels } from "../components/agent-config-primitives";
 import { AgentConfigForm, type CreateConfigValues } from "../components/AgentConfigForm";
@@ -56,6 +57,7 @@ function createValuesForAdapterType(
 }
 
 export function NewAgent() {
+  const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const queryClient = useQueryClient();
@@ -96,8 +98,8 @@ export function NewAgent() {
 
   useEffect(() => {
     setBreadcrumbs([
-      { label: "Agents", href: "/agents" },
-      { label: "New Agent" },
+      { label: t("agents.title"), href: "/agents" },
+      { label: t("newAgent.title") },
     ]);
   }, [setBreadcrumbs]);
 
@@ -194,7 +196,7 @@ export function NewAgent() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-lg font-semibold">New Agent</h1>
+        <h1 className="text-lg font-semibold">{t("newAgent.title")}</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Advanced agent configuration
         </p>
@@ -205,7 +207,7 @@ export function NewAgent() {
         <div className="px-4 pt-4 pb-2">
           <input
             className="w-full text-lg font-semibold bg-transparent outline-none placeholder:text-muted-foreground/50"
-            placeholder="Agent name"
+            placeholder={t("newAgent.agentNamePlaceholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
@@ -216,7 +218,7 @@ export function NewAgent() {
         <div className="px-4 pb-2">
           <input
             className="w-full bg-transparent outline-none text-sm text-muted-foreground placeholder:text-muted-foreground/40"
-            placeholder="Title (e.g. VP of Engineering)"
+            placeholder={t("newAgent.titlePlaceholder")}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
@@ -265,12 +267,12 @@ export function NewAgent() {
                 {currentReportsTo ? (
                   <>
                     <AgentIcon icon={currentReportsTo.icon} className="h-3 w-3 text-muted-foreground" />
-                    {`Reports to ${currentReportsTo.name}`}
+                    {t("newAgent.reportsTo", { name: currentReportsTo.name })}
                   </>
                 ) : (
                   <>
                     <User className="h-3 w-3 text-muted-foreground" />
-                    {isFirstAgent ? "Reports to: N/A (CEO)" : "Reports to..."}
+                    {isFirstAgent ? t("newAgent.reportsToNone") : t("newAgent.reportsToPlaceholder")}
                   </>
                 )}
               </button>
@@ -283,7 +285,7 @@ export function NewAgent() {
                 )}
                 onClick={() => { setReportsTo(""); setReportsToOpen(false); }}
               >
-                No manager
+                {t("newAgent.noManager")}
               </button>
               {(agents ?? []).map((a) => (
                 <button
@@ -314,21 +316,21 @@ export function NewAgent() {
         {/* Footer */}
         <div className="border-t border-border px-4 py-3">
           {isFirstAgent && (
-            <p className="text-xs text-muted-foreground mb-2">This will be the CEO</p>
+            <p className="text-xs text-muted-foreground mb-2">{t("newAgent.willBeCeo")}</p>
           )}
           {formError && (
             <p className="text-xs text-destructive mb-2">{formError}</p>
           )}
           <div className="flex items-center justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => navigate("/agents")}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               size="sm"
               disabled={!name.trim() || createAgent.isPending}
               onClick={handleSubmit}
             >
-              {createAgent.isPending ? "Creating…" : "Create agent"}
+              {createAgent.isPending ? t("newAgent.creatingAgent") : t("newAgent.createAgent")}
             </Button>
           </div>
         </div>

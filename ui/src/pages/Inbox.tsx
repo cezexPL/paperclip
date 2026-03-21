@@ -39,6 +39,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Identity } from "../components/Identity";
+import { useTranslation } from "react-i18next";
 import { PageTabBar } from "../components/PageTabBar";
 import type { HeartbeatRun, Issue, JoinRequest } from "@paperclipai/shared";
 import {
@@ -234,6 +235,7 @@ function FailedRunCard({
 }
 
 export function Inbox() {
+  const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const navigate = useNavigate();
@@ -263,7 +265,7 @@ export function Inbox() {
   });
 
   useEffect(() => {
-    setBreadcrumbs([{ label: "Inbox" }]);
+    setBreadcrumbs([{ label: t("inbox.title") }]);
   }, [setBreadcrumbs]);
 
   useEffect(() => {
@@ -563,10 +565,10 @@ export function Inbox() {
               items={[
                 {
                   value: "recent",
-                  label: "Recent",
+                  label: t("inbox.recent"),
                 },
-                { value: "unread", label: "Unread" },
-                { value: "all", label: "All" },
+                { value: "unread", label: t("inbox.unread") },
+                { value: "all", label: t("inbox.all") },
               ]}
             />
           </Tabs>

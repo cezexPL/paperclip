@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Issue, IssueDocument } from "@paperclipai/shared";
 import { useLocation } from "@/lib/router";
@@ -97,6 +98,7 @@ export function IssueDocumentsSection({
   imageUploadHandler?: (file: File) => Promise<string>;
   extraActions?: ReactNode;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const location = useLocation();
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
@@ -528,7 +530,7 @@ export function IssueDocumentsSection({
         </div>
       ) : (
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-medium text-muted-foreground">Documents</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">{t("issueDocuments.documents")}</h3>
           <div className="flex items-center gap-2">
             {extraActions}
             <Button variant="outline" size="sm" onClick={beginNewDocument}>
