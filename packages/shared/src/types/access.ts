@@ -1,5 +1,6 @@
 import type {
   AgentAdapterType,
+  CompanyRole,
   InstanceUserRole,
   InviteJoinType,
   InviteType,
@@ -70,6 +71,18 @@ export interface JoinRequest {
   rejectedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CompanyInvite {
+  id: string;
+  companyId: string;
+  token: string;
+  role: CompanyRole;
+  createdByUserId: string | null;
+  expiresAt: Date;
+  acceptedAt: Date | null;
+  acceptedByUserId: string | null;
+  createdAt: Date;
 }
 
 export interface InstanceUserRoleGrant {

@@ -3,6 +3,7 @@ export { authUsers, authSessions, authAccounts, authVerifications } from "./auth
 export { instanceUserRoles } from "./instance_user_roles.js";
 export { agents } from "./agents.js";
 export { companyMemberships } from "./company_memberships.js";
+export { companyInvites } from "./company_invites.js";
 export { principalPermissionGrants } from "./principal_permission_grants.js";
 export { invites } from "./invites.js";
 export { joinRequests } from "./join_requests.js";

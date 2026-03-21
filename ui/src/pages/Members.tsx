@@ -1,165 +1,62 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Users, Copy, Check, Trash2, Shield } from "lucide-react";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
-import { membersApi, type CompanyMember } from "../api/members";
-import { accessApi } from "../api/access";
 import { queryKeys } from "../lib/queryKeys";
-import { Button } from "@/components/ui/button";
+import { api } from "../api/client";
+import { EmptyState } from "../components/EmptyState";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { Button } from "@/components/ui/button";
 import {
-  Users,
-  UserPlus,
-  Trash2,
-  Link as LinkIcon,
-  Copy,
-  Check,
-  ChevronDown,
-} from "lucide-react";
-import type { MembershipRole } from "@paperclipai/shared";
-import { MEMBERSHIP_ROLES } from "@paperclipai/shared";
-import { formatDate } from "../lib/utils";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-const ROLE_COLORS: Record<string, string> = {
-  owner: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-  admin: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  operator: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-  viewer: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+type MemberRow = {
+  id: string;
+  companyId: string;
+  principalType: string;
+  principalId: string;
+  status: string;
+  membershipRole: string | null;
+  invitedByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  userName: string | null;
+  userEmail: string | null;
+  userImage: string | null;
 };
 
-const ROLE_LABEL_KEYS: Record<string, string> = {
-  owner: "members.roleOwner",
-  admin: "members.roleAdmin",
-  operator: "members.roleOperator",
-  viewer: "members.roleViewer",
+type InviteRow = {
+  id: string;
+  companyId: string;
+  token: string;
+  role: string;
+  createdByUserId: string | null;
+  expiresAt: string;
+  acceptedAt: string | null;
+  acceptedByUserId: string | null;
+  createdAt: string;
 };
 
-function RoleBadge({ role }: { role: string | null }) {
-  const { t } = useTranslation();
-  const key = role ?? "viewer";
-  const label = t(ROLE_LABEL_KEYS[key] ?? ROLE_LABEL_KEYS.viewer!);
-  const color = ROLE_COLORS[key] ?? ROLE_COLORS.viewer;
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>
-      {label}
-    </span>
-  );
+const ROLES = ["owner", "admin", "operator", "viewer"] as const;
+
+function membersKeys(companyId: string) {
+  return ["members", companyId] as const;
 }
-
-function RoleDropdown({
-  currentRole,
-  onSelect,
-  disabled,
-}: {
-  currentRole: string | null;
-  onSelect: (role: MembershipRole) => void;
-  disabled: boolean;
-}) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="relative">
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={disabled}
-        onClick={() => setOpen(!open)}
-        className="gap-1 text-xs"
-      >
-        {t(ROLE_LABEL_KEYS[currentRole ?? "viewer"] ?? ROLE_LABEL_KEYS.viewer!)}
-        <ChevronDown className="h-3 w-3" />
-      </Button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-50 mt-1 w-40 rounded-md border border-border bg-popover p-1 shadow-md">
-            {MEMBERSHIP_ROLES.map((role) => (
-              <button
-                key={role}
-                className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-accent ${
-                  role === currentRole ? "font-semibold" : ""
-                }`}
-                onClick={() => {
-                  onSelect(role);
-                  setOpen(false);
-                }}
-              >
-                {role === currentRole && <Check className="h-3 w-3" />}
-                {role !== currentRole && <span className="w-3" />}
-                {t(ROLE_LABEL_KEYS[role]!)}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function MemberRow({
-  member,
-  isOwner,
-  onUpdateRole,
-  onRemove,
-  isPending,
-}: {
-  member: CompanyMember;
-  isOwner: boolean;
-  onUpdateRole: (userId: string, role: MembershipRole) => void;
-  onRemove: (userId: string) => void;
-  isPending: boolean;
-}) {
-  const { t } = useTranslation();
-  const displayName = member.name || member.email || member.principalId;
-  const initial = (member.name ?? member.email ?? "?")[0]?.toUpperCase() ?? "?";
-  const typeLabel = member.principalType === "agent" ? t("members.typeAgent") : t("members.typeUser");
-
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-        {initial}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
-        {member.email && member.name && (
-          <p className="text-xs text-muted-foreground truncate">{member.email}</p>
-        )}
-        <p className="text-xs text-muted-foreground">
-          {typeLabel} &middot; {t("members.joined")} {formatDate(member.createdAt)}
-        </p>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {isOwner && member.principalType === "user" ? (
-          <RoleDropdown
-            currentRole={member.membershipRole}
-            onSelect={(role) => onUpdateRole(member.principalId, role)}
-            disabled={isPending}
-          />
-        ) : (
-          <RoleBadge role={member.membershipRole} />
-        )}
-        {isOwner && member.principalType === "user" && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="text-muted-foreground hover:text-destructive"
-            disabled={isPending}
-            onClick={() => {
-              if (window.confirm(t("members.removeConfirm"))) {
-                onRemove(member.principalId);
-              }
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-    </div>
-  );
+function memberInvitesKeys(companyId: string) {
+  return ["member-invites", companyId] as const;
 }
 
 export function Members() {
@@ -167,169 +64,238 @@ export function Members() {
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const queryClient = useQueryClient();
-
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
-  const [inviteCopied, setInviteCopied] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteRole, setInviteRole] = useState<string>("operator");
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    setBreadcrumbs([{ label: t("members.breadcrumb") }]);
+    setBreadcrumbs([{ label: t("members.title") }]);
   }, [setBreadcrumbs, t]);
 
-  const {
-    data: members,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: queryKeys.members.list(selectedCompanyId!),
-    queryFn: () => membersApi.list(selectedCompanyId!),
+  const { data: members, isLoading } = useQuery({
+    queryKey: membersKeys(selectedCompanyId!),
+    queryFn: () => api.get<MemberRow[]>(`/companies/${selectedCompanyId}/members`),
     enabled: !!selectedCompanyId,
   });
 
-  const isOwner = true; // In local_trusted mode, user is always instance admin
-
-  const updateRoleMutation = useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role: MembershipRole }) =>
-      membersApi.updateRole(selectedCompanyId!, userId, role),
-    onSuccess: () => {
-      setActionError(null);
-      queryClient.invalidateQueries({ queryKey: queryKeys.members.list(selectedCompanyId!) });
-    },
-    onError: (err) => {
-      setActionError(err instanceof Error ? err.message : t("members.error"));
-    },
+  const { data: invites } = useQuery({
+    queryKey: memberInvitesKeys(selectedCompanyId!),
+    queryFn: () => api.get<InviteRow[]>(`/companies/${selectedCompanyId}/members/invites`),
+    enabled: !!selectedCompanyId,
   });
 
-  const removeMutation = useMutation({
-    mutationFn: (userId: string) => membersApi.remove(selectedCompanyId!, userId),
-    onSuccess: () => {
-      setActionError(null);
-      queryClient.invalidateQueries({ queryKey: queryKeys.members.list(selectedCompanyId!) });
-    },
-    onError: (err) => {
-      setActionError(err instanceof Error ? err.message : t("members.error"));
-    },
-  });
-
-  const inviteMutation = useMutation({
-    mutationFn: () =>
-      accessApi.createCompanyInvite(selectedCompanyId!, { allowedJoinTypes: "human" }),
+  const createInviteMut = useMutation({
+    mutationFn: (role: string) =>
+      api.post<InviteRow>(`/companies/${selectedCompanyId}/members/invites`, { role }),
     onSuccess: (data) => {
-      setActionError(null);
-      const url = `${window.location.origin}/invite/${data.token}`;
-      setInviteUrl(url);
-    },
-    onError: (err) => {
-      setActionError(err instanceof Error ? err.message : t("members.error"));
+      setInviteToken(data.token);
+      queryClient.invalidateQueries({ queryKey: memberInvitesKeys(selectedCompanyId!) });
     },
   });
 
-  function copyInviteLink() {
-    if (!inviteUrl) return;
-    navigator.clipboard.writeText(inviteUrl);
-    setInviteCopied(true);
-    setTimeout(() => setInviteCopied(false), 2000);
-  }
+  const updateRoleMut = useMutation({
+    mutationFn: ({ memberId, role }: { memberId: string; role: string }) =>
+      api.patch(`/companies/${selectedCompanyId}/members/${memberId}`, { role }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: membersKeys(selectedCompanyId!) });
+    },
+  });
+
+  const removeMemberMut = useMutation({
+    mutationFn: (memberId: string) =>
+      api.delete(`/companies/${selectedCompanyId}/members/${memberId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: membersKeys(selectedCompanyId!) });
+    },
+  });
 
   if (!selectedCompanyId) {
-    return <p className="text-sm text-muted-foreground">{t("members.noCompany")}</p>;
+    return (
+      <div className="p-6 text-sm text-muted-foreground">{t("members.selectCompany")}</div>
+    );
   }
 
   if (isLoading) {
-    return <PageSkeleton variant="list" />;
+    return <PageSkeleton />;
   }
 
-  const isPending = updateRoleMutation.isPending || removeMutation.isPending;
+  function handleCreateInvite() {
+    setInviteToken(null);
+    setCopied(false);
+    createInviteMut.mutate(inviteRole);
+  }
 
-  const userMembers = (members ?? []).filter((m) => m.principalType === "user");
-  const agentMembers = (members ?? []).filter((m) => m.principalType === "agent");
+  function copyInviteLink() {
+    if (!inviteToken) return;
+    const url = `${window.location.origin}/invite/collab/${inviteToken}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  function roleLabel(role: string) {
+    return t(`members.${role}` as const, role);
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-3xl p-6">
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5 text-muted-foreground" />
           <h1 className="text-lg font-semibold">{t("members.title")}</h1>
-          <span className="text-sm text-muted-foreground">({(members ?? []).length})</span>
         </div>
-        <Button
-          size="sm"
-          onClick={() => inviteMutation.mutate()}
-          disabled={inviteMutation.isPending}
-          className="gap-1.5"
-        >
-          <UserPlus className="h-4 w-4" />
+        <Button size="sm" onClick={() => setInviteOpen(true)}>
           {t("members.invite")}
         </Button>
       </div>
 
-      {error && (
-        <p className="text-sm text-destructive">
-          {error instanceof Error ? error.message : t("members.error")}
-        </p>
-      )}
-      {actionError && <p className="text-sm text-destructive">{actionError}</p>}
-
-      {inviteUrl && (
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-3">
-          <LinkIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-foreground">{t("members.inviteGenerated")}</p>
-            <p className="text-xs text-muted-foreground truncate">{inviteUrl}</p>
-          </div>
-          <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={copyInviteLink}>
-            {inviteCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            {inviteCopied ? t("members.inviteLinkCopied") : t("members.inviteLink")}
-          </Button>
+      {/* Members list */}
+      {!members?.length ? (
+        <EmptyState icon={Users} message={t("members.noMembers")} />
+      ) : (
+        <div className="rounded-lg border border-border divide-y divide-border">
+          {members.map((member) => (
+            <div key={member.id} className="flex items-center gap-3 px-4 py-3">
+              {member.userImage ? (
+                <img
+                  src={member.userImage}
+                  alt=""
+                  className="h-8 w-8 rounded-full"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
+                  {(member.userName ?? member.userEmail ?? "?")[0]?.toUpperCase()}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium truncate">
+                  {member.userName ?? member.principalId}
+                </div>
+                {member.userEmail && (
+                  <div className="text-xs text-muted-foreground truncate">
+                    {member.userEmail}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={member.membershipRole ?? "operator"}
+                  onValueChange={(role) =>
+                    updateRoleMut.mutate({ memberId: member.id, role })
+                  }
+                >
+                  <SelectTrigger className="h-7 w-28 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {roleLabel(r)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => {
+                    if (confirm(t("members.removeConfirm"))) {
+                      removeMemberMut.mutate(member.id);
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      {userMembers.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            {t("members.typeUser")} ({userMembers.length})
+      {/* Pending invites */}
+      {invites && invites.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            {t("members.invite")}
           </h2>
-          <div className="grid gap-2">
-            {userMembers.map((member) => (
-              <MemberRow
-                key={member.id}
-                member={member}
-                isOwner={isOwner}
-                onUpdateRole={(userId, role) => updateRoleMutation.mutate({ userId, role })}
-                onRemove={(userId) => removeMutation.mutate(userId)}
-                isPending={isPending}
-              />
-            ))}
+          <div className="rounded-lg border border-border divide-y divide-border">
+            {invites.map((inv) => {
+              const isExpired = new Date(inv.expiresAt) < new Date();
+              const isAccepted = !!inv.acceptedAt;
+              return (
+                <div key={inv.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+                  <Shield className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium">{roleLabel(inv.role)}</span>
+                    <span className="text-muted-foreground ml-2">
+                      {isAccepted
+                        ? t("members.accepted")
+                        : isExpired
+                          ? t("members.expired")
+                          : t("members.pending")}
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(inv.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {agentMembers.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            {t("members.typeAgent")} ({agentMembers.length})
-          </h2>
-          <div className="grid gap-2">
-            {agentMembers.map((member) => (
-              <MemberRow
-                key={member.id}
-                member={member}
-                isOwner={false}
-                onUpdateRole={() => {}}
-                onRemove={() => {}}
-                isPending={isPending}
-              />
-            ))}
+      {/* Invite dialog */}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("members.invite")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium">{t("members.inviteRole")}</label>
+              <Select value={inviteRole} onValueChange={setInviteRole}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {roleLabel(r)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {inviteToken ? (
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">{t("members.inviteDesc")}</p>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={`${window.location.origin}/invite/collab/${inviteToken}`}
+                    className="flex-1 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs font-mono"
+                  />
+                  <Button variant="outline" size="sm" onClick={copyInviteLink}>
+                    {copied ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    {copied ? t("members.copied") : t("members.copyLink")}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button onClick={handleCreateInvite} disabled={createInviteMut.isPending}>
+                {t("members.invite")}
+              </Button>
+            )}
           </div>
-        </div>
-      )}
-
-      {(members ?? []).length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Users className="h-10 w-10 text-muted-foreground/50 mb-3" />
-          <p className="text-sm text-muted-foreground">{t("members.empty")}</p>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
