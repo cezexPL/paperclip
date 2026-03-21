@@ -21,6 +21,7 @@ services:
     restart: unless-stopped
     network_mode: host
     environment:
+      NODE_OPTIONS: "--unhandled-rejections=warn"
       DATABASE_URL: postgres://paperclip:${POSTGRES_PASSWORD:-paperclip-docker-2026}@127.0.0.1:5433/paperclip
       PORT: "3100"
       SERVE_UI: "true"
