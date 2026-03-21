@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { resolveDefaultAgentWorkspaceDir } from "../home-paths.js";
 import {
+  applyConfiguredCwdWorkspaceOverride,
   resolveRuntimeSessionParamsForWorkspace,
-  rewriteWorkspaceWarningsForConfiguredCwd,
   shouldResetTaskSessionForWake,
   type ResolvedWorkspaceForRun,
 } from "../services/heartbeat.ts";
@@ -153,39 +153,44 @@ describe("shouldResetTaskSessionForWake", () => {
   });
 });
 
-describe("rewriteWorkspaceWarningsForConfiguredCwd", () => {
-  it("rewrites fallback workspace warnings when a local adapter will use configured cwd", () => {
-    const warnings = rewriteWorkspaceWarningsForConfiguredCwd({
-      warnings: [
-        'No project or prior session workspace was available. Using fallback workspace "/paperclip/instances/default/workspaces/agent-1" for this run.',
-      ],
+describe("applyConfiguredCwdWorkspaceOverride", () => {
+  it("uses configured cwd as the effective base workspace for local adapters", () => {
+    const result = applyConfiguredCwdWorkspaceOverride({
+      resolvedWorkspace: buildResolvedWorkspace({
+        cwd: "/paperclip/instances/default/workspaces/agent-1",
+        source: "agent_home",
+        warnings: [
+          'No project or prior session workspace was available. Using fallback workspace "/paperclip/instances/default/workspaces/agent-1" for this run.',
+        ],
+      }),
       adapterType: "gemini_local",
       resolvedConfig: {
         cwd: "/paperclip/instances/default/workspaces/shared-nas",
       },
-      executionWorkspaceCwd: "/paperclip/instances/default/workspaces/agent-1",
-      executionWorkspaceSource: "agent_home",
     });
 
-    expect(warnings).toEqual([
-      'No project or prior session workspace was available. Adapter-configured cwd "/paperclip/instances/default/workspaces/shared-nas" will be used for this run.',
-    ]);
+    expect(result.cwd).toBe("/paperclip/instances/default/workspaces/shared-nas");
+    expect(result.warnings).toEqual([]);
+    expect(result.source).toBe("agent_home");
   });
 
-  it("leaves warnings unchanged when configured cwd is not taking over agent-home execution", () => {
-    const warnings = rewriteWorkspaceWarningsForConfiguredCwd({
-      warnings: [
-        'No project or prior session workspace was available. Using fallback workspace "/paperclip/instances/default/workspaces/agent-1" for this run.',
-      ],
+  it("leaves the resolved workspace unchanged for non-local adapters", () => {
+    const result = applyConfiguredCwdWorkspaceOverride({
+      resolvedWorkspace: buildResolvedWorkspace({
+        cwd: "/paperclip/instances/default/workspaces/agent-1",
+        source: "agent_home",
+        warnings: [
+          'No project or prior session workspace was available. Using fallback workspace "/paperclip/instances/default/workspaces/agent-1" for this run.',
+        ],
+      }),
       adapterType: "openclaw_gateway",
       resolvedConfig: {
         cwd: "/paperclip/instances/default/workspaces/shared-nas",
       },
-      executionWorkspaceCwd: "/paperclip/instances/default/workspaces/agent-1",
-      executionWorkspaceSource: "agent_home",
     });
 
-    expect(warnings).toEqual([
+    expect(result.cwd).toBe("/paperclip/instances/default/workspaces/agent-1");
+    expect(result.warnings).toEqual([
       'No project or prior session workspace was available. Using fallback workspace "/paperclip/instances/default/workspaces/agent-1" for this run.',
     ]);
   });

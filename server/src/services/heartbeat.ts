@@ -24,7 +24,7 @@ import { parseObject, asBoolean, asNumber, appendWithCap, MAX_EXCERPT_BYTES } fr
 import { costService } from "./costs.js";
 import { circuitBreakerService } from "./circuit-breaker.js";
 import { secretService } from "./secrets.js";
-import { resolveDefaultAgentWorkspaceDir } from "../home-paths.js";
+import { resolveDefaultAgentWorkspaceDir, resolveHomeAwarePath } from "../home-paths.js";
 import { summarizeHeartbeatRunResultJson } from "./heartbeat-run-summary.js";
 import {
   buildWorkspaceReadyComment,
@@ -321,31 +321,31 @@ export function resolveRuntimeSessionParamsForWorkspace(input: {
   };
 }
 
-export function rewriteWorkspaceWarningsForConfiguredCwd(input: {
-  warnings: string[];
+export function applyConfiguredCwdWorkspaceOverride(input: {
+  resolvedWorkspace: ResolvedWorkspaceForRun;
   adapterType: string;
   resolvedConfig: Record<string, unknown>;
-  executionWorkspaceCwd: string;
-  executionWorkspaceSource: ResolvedWorkspaceForRun["source"];
 }) {
+  const { resolvedWorkspace } = input;
   const configuredCwd = readNonEmptyString(input.resolvedConfig.cwd);
   if (
     !configuredCwd ||
-    input.executionWorkspaceSource !== "agent_home" ||
-    !SESSIONED_LOCAL_ADAPTERS.has(input.adapterType) ||
-    path.resolve(configuredCwd) === path.resolve(input.executionWorkspaceCwd)
+    resolvedWorkspace.source !== "agent_home" ||
+    !SESSIONED_LOCAL_ADAPTERS.has(input.adapterType)
   ) {
-    return input.warnings;
+    return resolvedWorkspace;
   }
 
-  return input.warnings.map((warning) => (
-    warning.includes('Using fallback workspace "')
-      ? warning.replace(
-          /Using fallback workspace ".*?" for this run\./,
-          `Adapter-configured cwd "${configuredCwd}" will be used for this run.`,
-        )
-      : warning
-  ));
+  const normalizedConfiguredCwd = resolveHomeAwarePath(configuredCwd);
+  if (path.resolve(normalizedConfiguredCwd) === path.resolve(resolvedWorkspace.cwd)) {
+    return resolvedWorkspace;
+  }
+
+  return {
+    ...resolvedWorkspace,
+    cwd: normalizedConfiguredCwd,
+    warnings: [],
+  };
 }
 
 function parseIssueAssigneeAdapterOverrides(
@@ -1503,14 +1503,23 @@ export function heartbeatService(db: Db) {
           .where(and(eq(issues.id, issueId), eq(issues.companyId, agent.companyId)))
           .then((rows) => rows[0] ?? null)
       : null;
+    const effectiveResolvedWorkspace = applyConfiguredCwdWorkspaceOverride({
+      resolvedWorkspace,
+      adapterType: agent.adapterType,
+      resolvedConfig,
+    });
+    if (path.resolve(effectiveResolvedWorkspace.cwd) !== path.resolve(resolvedWorkspace.cwd)) {
+      await fs.mkdir(effectiveResolvedWorkspace.cwd, { recursive: true });
+    }
+
     const executionWorkspace = await realizeExecutionWorkspace({
       base: {
-        baseCwd: resolvedWorkspace.cwd,
-        source: resolvedWorkspace.source,
-        projectId: resolvedWorkspace.projectId,
-        workspaceId: resolvedWorkspace.workspaceId,
-        repoUrl: resolvedWorkspace.repoUrl,
-        repoRef: resolvedWorkspace.repoRef,
+        baseCwd: effectiveResolvedWorkspace.cwd,
+        source: effectiveResolvedWorkspace.source,
+        projectId: effectiveResolvedWorkspace.projectId,
+        workspaceId: effectiveResolvedWorkspace.workspaceId,
+        repoUrl: effectiveResolvedWorkspace.repoUrl,
+        repoRef: effectiveResolvedWorkspace.repoRef,
       },
       config: resolvedConfig,
       issue: issueRef,
@@ -1529,9 +1538,8 @@ export function heartbeatService(db: Db) {
       },
     });
     const runtimeSessionParams = runtimeSessionResolution.sessionParams;
-    const runtimeWorkspaceWarnings = rewriteWorkspaceWarningsForConfiguredCwd({
-      warnings: [
-      ...resolvedWorkspace.warnings,
+    const runtimeWorkspaceWarnings = [
+      ...effectiveResolvedWorkspace.warnings,
       ...executionWorkspace.warnings,
       ...(runtimeSessionResolution.warning ? [runtimeSessionResolution.warning] : []),
       ...(resetTaskSession && sessionResetReason
@@ -1541,12 +1549,7 @@ export function heartbeatService(db: Db) {
               : `Skipping saved session resume because ${sessionResetReason}.`,
           ]
         : []),
-      ],
-      adapterType: agent.adapterType,
-      resolvedConfig,
-      executionWorkspaceCwd: executionWorkspace.cwd,
-      executionWorkspaceSource: executionWorkspace.source,
-    });
+    ];
     context.paperclipWorkspace = {
       cwd: executionWorkspace.cwd,
       source: executionWorkspace.source,
