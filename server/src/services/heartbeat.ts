@@ -321,6 +321,33 @@ export function resolveRuntimeSessionParamsForWorkspace(input: {
   };
 }
 
+export function rewriteWorkspaceWarningsForConfiguredCwd(input: {
+  warnings: string[];
+  adapterType: string;
+  resolvedConfig: Record<string, unknown>;
+  executionWorkspaceCwd: string;
+  executionWorkspaceSource: ResolvedWorkspaceForRun["source"];
+}) {
+  const configuredCwd = readNonEmptyString(input.resolvedConfig.cwd);
+  if (
+    !configuredCwd ||
+    input.executionWorkspaceSource !== "agent_home" ||
+    !SESSIONED_LOCAL_ADAPTERS.has(input.adapterType) ||
+    path.resolve(configuredCwd) === path.resolve(input.executionWorkspaceCwd)
+  ) {
+    return input.warnings;
+  }
+
+  return input.warnings.map((warning) => (
+    warning.includes('Using fallback workspace "')
+      ? warning.replace(
+          /Using fallback workspace ".*?" for this run\./,
+          `Adapter-configured cwd "${configuredCwd}" will be used for this run.`,
+        )
+      : warning
+  ));
+}
+
 function parseIssueAssigneeAdapterOverrides(
   raw: unknown,
 ): ParsedIssueAssigneeAdapterOverrides | null {
@@ -1502,7 +1529,8 @@ export function heartbeatService(db: Db) {
       },
     });
     const runtimeSessionParams = runtimeSessionResolution.sessionParams;
-    const runtimeWorkspaceWarnings = [
+    const runtimeWorkspaceWarnings = rewriteWorkspaceWarningsForConfiguredCwd({
+      warnings: [
       ...resolvedWorkspace.warnings,
       ...executionWorkspace.warnings,
       ...(runtimeSessionResolution.warning ? [runtimeSessionResolution.warning] : []),
@@ -1513,7 +1541,12 @@ export function heartbeatService(db: Db) {
               : `Skipping saved session resume because ${sessionResetReason}.`,
           ]
         : []),
-    ];
+      ],
+      adapterType: agent.adapterType,
+      resolvedConfig,
+      executionWorkspaceCwd: executionWorkspace.cwd,
+      executionWorkspaceSource: executionWorkspace.source,
+    });
     context.paperclipWorkspace = {
       cwd: executionWorkspace.cwd,
       source: executionWorkspace.source,

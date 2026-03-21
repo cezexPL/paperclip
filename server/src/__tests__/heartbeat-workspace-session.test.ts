@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveDefaultAgentWorkspaceDir } from "../home-paths.js";
 import {
   resolveRuntimeSessionParamsForWorkspace,
+  rewriteWorkspaceWarningsForConfiguredCwd,
   shouldResetTaskSessionForWake,
   type ResolvedWorkspaceForRun,
 } from "../services/heartbeat.ts";
@@ -149,5 +150,43 @@ describe("shouldResetTaskSessionForWake", () => {
         wakeTriggerDetail: "callback",
       }),
     ).toBe(false);
+  });
+});
+
+describe("rewriteWorkspaceWarningsForConfiguredCwd", () => {
+  it("rewrites fallback workspace warnings when a local adapter will use configured cwd", () => {
+    const warnings = rewriteWorkspaceWarningsForConfiguredCwd({
+      warnings: [
+        'No project or prior session workspace was available. Using fallback workspace "/paperclip/instances/default/workspaces/agent-1" for this run.',
+      ],
+      adapterType: "gemini_local",
+      resolvedConfig: {
+        cwd: "/paperclip/instances/default/workspaces/shared-nas",
+      },
+      executionWorkspaceCwd: "/paperclip/instances/default/workspaces/agent-1",
+      executionWorkspaceSource: "agent_home",
+    });
+
+    expect(warnings).toEqual([
+      'No project or prior session workspace was available. Adapter-configured cwd "/paperclip/instances/default/workspaces/shared-nas" will be used for this run.',
+    ]);
+  });
+
+  it("leaves warnings unchanged when configured cwd is not taking over agent-home execution", () => {
+    const warnings = rewriteWorkspaceWarningsForConfiguredCwd({
+      warnings: [
+        'No project or prior session workspace was available. Using fallback workspace "/paperclip/instances/default/workspaces/agent-1" for this run.',
+      ],
+      adapterType: "openclaw_gateway",
+      resolvedConfig: {
+        cwd: "/paperclip/instances/default/workspaces/shared-nas",
+      },
+      executionWorkspaceCwd: "/paperclip/instances/default/workspaces/agent-1",
+      executionWorkspaceSource: "agent_home",
+    });
+
+    expect(warnings).toEqual([
+      'No project or prior session workspace was available. Using fallback workspace "/paperclip/instances/default/workspaces/agent-1" for this run.',
+    ]);
   });
 });
