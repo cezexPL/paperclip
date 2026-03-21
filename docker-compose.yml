@@ -30,6 +30,7 @@ services:
       PAPERCLIP_PUBLIC_URL: "http://152.53.116.238:3100"
       PAPERCLIP_ALLOWED_HOSTNAMES: "152.53.116.238"
       BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
+      PAPERCLIP_AGENT_JWT_SECRET: "400755845795623a72753ba96193d7e20700b6d61bce493712474eaeee34ca95"
     volumes:
       - paperclip-data:/paperclip
       - /home/rancher/.codex/auth.json:/paperclip/.codex/auth.json:ro
