@@ -10,6 +10,7 @@ import type {
 } from "@paperclipai/shared";
 import { isUuidLike, normalizeAgentUrlKey } from "@paperclipai/shared";
 import { ApiError, api } from "./client";
+import { withCompanyScope } from "./query";
 
 export interface AgentKey {
   id: string;
@@ -54,12 +55,6 @@ export interface CircuitBreakerStatus {
   consecutiveNoProgress: number;
   maxFailures: number;
   maxNoProgress: number;
-}
-
-function withCompanyScope(path: string, companyId?: string) {
-  if (!companyId) return path;
-  const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}companyId=${encodeURIComponent(companyId)}`;
 }
 
 function agentPath(id: string, companyId?: string, suffix = "") {

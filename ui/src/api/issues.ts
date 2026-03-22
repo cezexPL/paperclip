@@ -9,6 +9,7 @@ import type {
   UpsertIssueDocument,
 } from "@paperclipai/shared";
 import { api } from "./client";
+import { withQueryString } from "./query";
 
 export const issuesApi = {
   list: (
@@ -24,17 +25,18 @@ export const issuesApi = {
       q?: string;
     },
   ) => {
-    const params = new URLSearchParams();
-    if (filters?.status) params.set("status", filters.status);
-    if (filters?.projectId) params.set("projectId", filters.projectId);
-    if (filters?.assigneeAgentId) params.set("assigneeAgentId", filters.assigneeAgentId);
-    if (filters?.assigneeUserId) params.set("assigneeUserId", filters.assigneeUserId);
-    if (filters?.touchedByUserId) params.set("touchedByUserId", filters.touchedByUserId);
-    if (filters?.unreadForUserId) params.set("unreadForUserId", filters.unreadForUserId);
-    if (filters?.labelId) params.set("labelId", filters.labelId);
-    if (filters?.q) params.set("q", filters.q);
-    const qs = params.toString();
-    return api.get<Issue[]>(`/companies/${companyId}/issues${qs ? `?${qs}` : ""}`);
+    return api.get<Issue[]>(
+      withQueryString(`/companies/${companyId}/issues`, {
+        status: filters?.status,
+        projectId: filters?.projectId,
+        assigneeAgentId: filters?.assigneeAgentId,
+        assigneeUserId: filters?.assigneeUserId,
+        touchedByUserId: filters?.touchedByUserId,
+        unreadForUserId: filters?.unreadForUserId,
+        labelId: filters?.labelId,
+        q: filters?.q,
+      }),
+    );
   },
   listLabels: (companyId: string) => api.get<IssueLabel[]>(`/companies/${companyId}/labels`),
   createLabel: (companyId: string, data: { name: string; color: string }) =>

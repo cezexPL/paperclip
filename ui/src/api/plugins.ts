@@ -19,6 +19,7 @@ import type {
   PluginStatus,
 } from "@paperclipai/shared";
 import { api } from "./client";
+import { withQueryString } from "./query";
 
 /**
  * Normalized UI contribution record returned by `GET /api/plugins/ui-contributions`.
@@ -163,7 +164,7 @@ export const pluginsApi = {
    *   Invalid values are rejected by the server with HTTP 400.
    */
   list: (status?: PluginStatus) =>
-    api.get<PluginRecord[]>(`/plugins${status ? `?status=${status}` : ""}`),
+    api.get<PluginRecord[]>(withQueryString("/plugins", { status: status })),
 
   /**
    * List bundled example plugins available from the current repo checkout.
@@ -201,7 +202,7 @@ export const pluginsApi = {
    *   Otherwise the plugin is soft-deleted with a 30-day data retention window.
    */
   uninstall: (pluginId: string, purge?: boolean) =>
-    api.delete<{ ok: boolean }>(`/plugins/${pluginId}${purge ? "?purge=true" : ""}`),
+    api.delete<{ ok: boolean }>(withQueryString(`/plugins/${pluginId}`, { purge: purge ? true : undefined })),
 
   /**
    * Transition a plugin from `error` state back to `ready`.
@@ -253,14 +254,21 @@ export const pluginsApi = {
    * @param options - Optional filters: limit, level, since.
    */
   logs: (pluginId: string, options?: { limit?: number; level?: string; since?: string }) => {
-    const params = new URLSearchParams();
-    if (options?.limit) params.set("limit", String(options.limit));
-    if (options?.level) params.set("level", options.level);
-    if (options?.since) params.set("since", options.since);
-    const qs = params.toString();
-    return api.get<Array<{ id: string; pluginId: string; level: string; message: string; meta: Record<string, unknown> | null; createdAt: string }>>(
-      `/plugins/${pluginId}/logs${qs ? `?${qs}` : ""}`,
-    );
+    const qs = withQueryString(`/plugins/${pluginId}/logs`, {
+      limit: options?.limit || undefined,
+      level: options?.level || undefined,
+      since: options?.since || undefined,
+    });
+    return api.get<
+      Array<{
+        id: string;
+        pluginId: string;
+        level: string;
+        message: string;
+        meta: Record<string, unknown> | null;
+        createdAt: string;
+      }>
+    >(qs);
   },
 
   /**

@@ -1,11 +1,6 @@
 import type { Project, ProjectWorkspace } from "@paperclipai/shared";
 import { api } from "./client";
-
-function withCompanyScope(path: string, companyId?: string) {
-  if (!companyId) return path;
-  const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}companyId=${encodeURIComponent(companyId)}`;
-}
+import { withCompanyScope } from "./query";
 
 function projectPath(id: string, companyId?: string, suffix = "") {
   return withCompanyScope(`/projects/${encodeURIComponent(id)}${suffix}`, companyId);

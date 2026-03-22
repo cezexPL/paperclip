@@ -1,5 +1,6 @@
 import type { CostSummary, CostByAgent } from "@paperclipai/shared";
 import { api } from "./client";
+import { withQueryString } from "./query";
 
 export interface CostByProject {
   projectId: string | null;
@@ -9,19 +10,11 @@ export interface CostByProject {
   outputTokens: number;
 }
 
-function dateParams(from?: string, to?: string): string {
-  const params = new URLSearchParams();
-  if (from) params.set("from", from);
-  if (to) params.set("to", to);
-  const qs = params.toString();
-  return qs ? `?${qs}` : "";
-}
-
 export const costsApi = {
   summary: (companyId: string, from?: string, to?: string) =>
-    api.get<CostSummary>(`/companies/${companyId}/costs/summary${dateParams(from, to)}`),
+    api.get<CostSummary>(withQueryString(`/companies/${companyId}/costs/summary`, { from, to })),
   byAgent: (companyId: string, from?: string, to?: string) =>
-    api.get<CostByAgent[]>(`/companies/${companyId}/costs/by-agent${dateParams(from, to)}`),
+    api.get<CostByAgent[]>(withQueryString(`/companies/${companyId}/costs/by-agent`, { from, to })),
   byProject: (companyId: string, from?: string, to?: string) =>
-    api.get<CostByProject[]>(`/companies/${companyId}/costs/by-project${dateParams(from, to)}`),
+    api.get<CostByProject[]>(withQueryString(`/companies/${companyId}/costs/by-project`, { from, to })),
 };

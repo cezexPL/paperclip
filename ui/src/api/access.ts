@@ -1,5 +1,6 @@
 import type { AgentAdapterType, JoinRequest } from "@paperclipai/shared";
 import { api } from "./client";
+import { withQueryString } from "./query";
 
 type InviteSummary = {
   id: string;
@@ -108,7 +109,7 @@ export const accessApi = {
     ),
 
   listJoinRequests: (companyId: string, status: "pending_approval" | "approved" | "rejected" = "pending_approval") =>
-    api.get<JoinRequest[]>(`/companies/${companyId}/join-requests?status=${status}`),
+    api.get<JoinRequest[]>(withQueryString(`/companies/${companyId}/join-requests`, { status })),
 
   approveJoinRequest: (companyId: string, requestId: string) =>
     api.post<JoinRequest>(`/companies/${companyId}/join-requests/${requestId}/approve`, {}),
@@ -123,7 +124,7 @@ export const accessApi = {
     ),
 
   getBoardClaimStatus: (token: string, code: string) =>
-    api.get<BoardClaimStatus>(`/board-claim/${token}?code=${encodeURIComponent(code)}`),
+    api.get<BoardClaimStatus>(withQueryString(`/board-claim/${token}`, { code })),
 
   claimBoard: (token: string, code: string) =>
     api.post<{ claimed: true; userId: string }>(`/board-claim/${token}/claim`, { code }),

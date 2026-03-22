@@ -4,6 +4,7 @@ import type {
   InstanceSchedulerHeartbeatAgent,
 } from "@paperclipai/shared";
 import { api } from "./client";
+import { withQueryString } from "./query";
 
 export interface ActiveRunForIssue extends HeartbeatRun {
   agentId: string;
@@ -27,20 +28,21 @@ export interface LiveRunForIssue {
 
 export const heartbeatsApi = {
   list: (companyId: string, agentId?: string, limit?: number) => {
-    const searchParams = new URLSearchParams();
-    if (agentId) searchParams.set("agentId", agentId);
-    if (limit) searchParams.set("limit", String(limit));
-    const qs = searchParams.toString();
-    return api.get<HeartbeatRun[]>(`/companies/${companyId}/heartbeat-runs${qs ? `?${qs}` : ""}`);
+    return api.get<HeartbeatRun[]>(
+      withQueryString(`/companies/${companyId}/heartbeat-runs`, {
+        agentId: agentId || undefined,
+        limit: limit || undefined,
+      }),
+    );
   },
   get: (runId: string) => api.get<HeartbeatRun>(`/heartbeat-runs/${runId}`),
   events: (runId: string, afterSeq = 0, limit = 200) =>
     api.get<HeartbeatRunEvent[]>(
-      `/heartbeat-runs/${runId}/events?afterSeq=${encodeURIComponent(String(afterSeq))}&limit=${encodeURIComponent(String(limit))}`,
+      withQueryString(`/heartbeat-runs/${runId}/events`, { afterSeq, limit }),
     ),
   log: (runId: string, offset = 0, limitBytes = 256000) =>
     api.get<{ runId: string; store: string; logRef: string; content: string; nextOffset?: number }>(
-      `/heartbeat-runs/${runId}/log?offset=${encodeURIComponent(String(offset))}&limitBytes=${encodeURIComponent(String(limitBytes))}`,
+      withQueryString(`/heartbeat-runs/${runId}/log`, { offset, limitBytes }),
     ),
   cancel: (runId: string) => api.post<void>(`/heartbeat-runs/${runId}/cancel`, {}),
   liveRunsForIssue: (issueId: string) =>
@@ -48,7 +50,7 @@ export const heartbeatsApi = {
   activeRunForIssue: (issueId: string) =>
     api.get<ActiveRunForIssue | null>(`/issues/${issueId}/active-run`),
   liveRunsForCompany: (companyId: string, minCount?: number) =>
-    api.get<LiveRunForIssue[]>(`/companies/${companyId}/live-runs${minCount ? `?minCount=${minCount}` : ""}`),
+    api.get<LiveRunForIssue[]>(withQueryString(`/companies/${companyId}/live-runs`, { minCount: minCount || undefined })),
   listInstanceSchedulerAgents: () =>
     api.get<InstanceSchedulerHeartbeatAgent[]>("/instance/scheduler-heartbeats"),
 };
